@@ -1,0 +1,45 @@
+{
+  "name": "kings-cribbage",
+  "compatibility_date": "2026-03-30",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "./workers/app.ts",
+  "assets": {
+    "directory": "./build/client"
+  },
+  "routes": [
+    {
+      "pattern": "kingscrib.tabledeck.us/*",
+      "zone_name": "tabledeck.us"
+    }
+  ],
+  "vars": {
+    "ENVIRONMENT": "production"
+  },
+  "d1_databases": [
+    {
+      "binding": "D1_DATABASE",
+      "database_name": "kings-cribbage",
+      "database_id": "2246b51d-acac-4d1d-a45d-050f0099c33f",
+      "migrations_dir": "migrations"
+    },
+    {
+      "binding": "AUTH_DB",
+      "database_name": "tabledeck-auth",
+      "database_id": "9e3645c4-fc3f-44df-8477-64a47d0637de"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "GAME_ROOM",
+        "class_name": "GameRoomDO"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["GameRoomDO"]
+    }
+  ]
+}

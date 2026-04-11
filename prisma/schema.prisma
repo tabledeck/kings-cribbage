@@ -1,0 +1,121 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/db"
+  runtime  = "cloudflare"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// better-auth tables
+model User {
+  id            String       @id @default(cuid())
+  email         String       @unique
+  emailVerified Boolean      @default(false)
+  name          String       @default("")
+  image         String?
+  banned        Boolean      @default(false)
+  banReason     String?
+  banExpires    Int?
+  sessions      Session[]
+  accounts      Account[]
+  gamePlayers   GamePlayer[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// Game domain models
+model Game {
+  id         String       @id // nanoid, e.g. "xK9f2m"
+  status     String       @default("waiting") // waiting | active | finished
+  maxPlayers Int          @default(2)
+  settings   String       @default("{}") // JSON: { seed, timePerTurn }
+  createdAt  DateTime     @default(now())
+  finishedAt DateTime?
+  players    GamePlayer[]
+  moves      Move[]
+  messages   ChatMessage[]
+
+  @@index([status])
+}
+
+model GamePlayer {
+  id        String  @id @default(cuid())
+  gameId    String
+  game      Game    @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  userId    String? // null for guests
+  user      User?   @relation(fields: [userId], references: [id])
+  guestName String? // "Guest-abc123"
+  seat      Int     // 0-3
+  score     Int     @default(0)
+  isActive  Boolean @default(true)
+
+  @@unique([gameId, seat])
+  @@index([gameId])
+  @@index([userId])
+}
+
+model Move {
+  id          String   @id @default(cuid())
+  gameId      String
+  game        Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  seat        Int      // which player seat
+  sequence    Int      // monotonic move number
+  moveType    String   // "place" | "pass" | "exchange" | "start"
+  data        String   // JSON: tiles placed, positions, tiles exchanged, etc.
+  scoreEarned Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@unique([gameId, sequence])
+  @@index([gameId])
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  gameId    String
+  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  seat      Int
+  presetId  Int      // index into CHAT_PRESETS constant
+  createdAt DateTime @default(now())
+
+  @@index([gameId])
+}

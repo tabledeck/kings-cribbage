@@ -1,0 +1,290 @@
+import { createTileBag, type Tile } from "./tiles";
+import {
+  posKey,
+  deserializeBoard,
+  serializeBoard,
+  type BoardState,
+  type CellState,
+} from "./board";
+import { scoreMove, tilePointValue, type Placement } from "./scoring";
+
+export interface PlayerState {
+  seat: number;
+  rack: Tile[];
+  score: number;
+  connected: boolean;
+  name: string;
+}
+
+export interface GameSettings {
+  seed: number;
+  maxPlayers: number;
+  timePerTurn?: number; // seconds, 0 = unlimited
+}
+
+export interface GameState {
+  status: "waiting" | "active" | "finished";
+  board: BoardState;
+  bag: Tile[];
+  players: PlayerState[];
+  currentTurn: number; // seat index
+  moveCount: number;
+  consecutivePasses: number;
+  firstMoveMade: boolean;
+  winner: number | null; // seat index
+}
+
+export type MoveType = "place" | "pass" | "exchange" | "start" | "join";
+
+export interface MoveRecord {
+  seat: number;
+  sequence: number;
+  moveType: MoveType;
+  data: PlaceMoveData | ExchangeMoveData | PassMoveData | StartMoveData | JoinMoveData;
+  scoreEarned: number;
+}
+
+export interface PlaceMoveData {
+  type: "place";
+  placements: Array<{ row: number; col: number; tile: Tile }>;
+}
+
+export interface ExchangeMoveData {
+  type: "exchange";
+  returnedTileIds: number[];
+  drawnTileIds: number[];
+}
+
+export interface PassMoveData {
+  type: "pass";
+}
+
+export interface StartMoveData {
+  type: "start";
+  // initial tile draws for all players
+  initialDraws: Array<{ seat: number; tiles: Tile[] }>;
+}
+
+export interface JoinMoveData {
+  type: "join";
+  seat: number;
+  name: string;
+}
+
+export function initializeGame(settings: GameSettings): GameState {
+  return {
+    status: "waiting",
+    board: new Map(),
+    bag: createTileBag(settings.seed),
+    players: [],
+    currentTurn: 0,
+    moveCount: 0,
+    consecutivePasses: 0,
+    firstMoveMade: false,
+    winner: null,
+  };
+}
+
+// Draw N tiles from the bag. Mutates bag array (pops from front).
+function drawFromBag(bag: Tile[], count: number): Tile[] {
+  return bag.splice(0, count);
+}
+
+// Refill a player's rack up to 5 tiles
+function refillRack(player: PlayerState, bag: Tile[]): void {
+  const needed = 5 - player.rack.length;
+  if (needed > 0 && bag.length > 0) {
+    const drawn = drawFromBag(bag, Math.min(needed, bag.length));
+    player.rack.push(...drawn);
+  }
+}
+
+export function applyMove(state: GameState, move: MoveRecord): GameState {
+  // Deep clone state (board is a Map, need to clone it)
+  const newState: GameState = {
+    ...state,
+    board: new Map(state.board),
+    bag: [...state.bag],
+    players: state.players.map((p) => ({
+      ...p,
+      rack: [...p.rack],
+    })),
+  };
+
+  const player = newState.players[move.seat];
+
+  switch (move.moveType) {
+    case "join": {
+      const d = move.data as JoinMoveData;
+      // Add player if not already present
+      if (!newState.players[d.seat]) {
+        newState.players[d.seat] = {
+          seat: d.seat,
+          rack: [],
+          score: 0,
+          connected: true,
+          name: d.name,
+        };
+      } else {
+        newState.players[d.seat].name = d.name;
+        newState.players[d.seat].connected = true;
+      }
+      break;
+    }
+
+    case "start": {
+      const d = move.data as StartMoveData;
+      newState.status = "active";
+      // Apply initial draws
+      for (const draw of d.initialDraws) {
+        if (newState.players[draw.seat]) {
+          newState.players[draw.seat].rack = draw.tiles;
+        }
+      }
+      // Remove drawn tiles from bag
+      const drawnIds = new Set(
+        d.initialDraws.flatMap((dr) => dr.tiles.map((t) => t.id)),
+      );
+      newState.bag = newState.bag.filter((t) => !drawnIds.has(t.id));
+      break;
+    }
+
+    case "place": {
+      const d = move.data as PlaceMoveData;
+      const placements: Placement[] = d.placements;
+
+      // Place tiles on board
+      for (const p of placements) {
+        newState.board.set(posKey(p.row, p.col), {
+          tile: p.tile,
+          seat: move.seat,
+          turnPlaced: newState.moveCount,
+        });
+      }
+
+      // Remove placed tiles from rack
+      const placedIds = new Set(placements.map((p) => p.tile.id));
+      player.rack = player.rack.filter((t) => !placedIds.has(t.id));
+
+      // Score the move
+      const scored = scoreMove(
+        state.board, // use original board for scoring
+        placements,
+        !state.firstMoveMade,
+        placements.length,
+      );
+      player.score += scored.total;
+      newState.firstMoveMade = true;
+      newState.consecutivePasses = 0;
+
+      // Refill rack
+      refillRack(player, newState.bag);
+
+      // Check if player emptied their rack AND bag is empty → game over
+      if (player.rack.length === 0 && newState.bag.length === 0) {
+        newState.status = "finished";
+        // Subtract remaining tile values from other players
+        for (const p of newState.players) {
+          if (p.seat !== move.seat) {
+            const penalty = p.rack.reduce((s, t) => s + tilePointValue(t), 0);
+            p.score -= penalty;
+          }
+        }
+        newState.winner = findWinner(newState.players);
+      }
+
+      newState.currentTurn = nextTurn(newState);
+      newState.moveCount++;
+      break;
+    }
+
+    case "pass": {
+      newState.consecutivePasses++;
+      newState.currentTurn = nextTurn(newState);
+      newState.moveCount++;
+
+      // If all players passed in a row, game ends
+      if (newState.consecutivePasses >= newState.players.length) {
+        newState.status = "finished";
+        // Subtract remaining tile values from all players
+        for (const p of newState.players) {
+          const penalty = p.rack.reduce((s, t) => s + tilePointValue(t), 0);
+          p.score -= penalty;
+        }
+        newState.winner = findWinner(newState.players);
+      }
+      break;
+    }
+
+    case "exchange": {
+      const d = move.data as ExchangeMoveData;
+      // Remove returned tiles from rack, put them at end of bag
+      const returnedIds = new Set(d.returnedTileIds);
+      const returned = player.rack.filter((t) => returnedIds.has(t.id));
+      player.rack = player.rack.filter((t) => !returnedIds.has(t.id));
+
+      // Draw the same number from the bag (they were pre-determined in drawnTileIds)
+      const drawnIds = new Set(d.drawnTileIds);
+      const drawn = newState.bag.filter((t) => drawnIds.has(t.id));
+      newState.bag = newState.bag.filter((t) => !drawnIds.has(t.id));
+      player.rack.push(...drawn);
+
+      // Return tiles to end of bag
+      newState.bag.push(...returned);
+
+      newState.consecutivePasses++;
+      newState.currentTurn = nextTurn(newState);
+      newState.moveCount++;
+      break;
+    }
+  }
+
+  return newState;
+}
+
+function nextTurn(state: GameState): number {
+  return (state.currentTurn + 1) % state.players.length;
+}
+
+function findWinner(players: PlayerState[]): number {
+  let best = -Infinity;
+  let winner = 0;
+  for (const p of players) {
+    if (p.score > best) {
+      best = p.score;
+      winner = p.seat;
+    }
+  }
+  return winner;
+}
+
+// Reconstruct game state from a list of moves (deterministic via seeded PRNG)
+export function replayMoves(
+  moves: MoveRecord[],
+  settings: GameSettings,
+): GameState {
+  let state = initializeGame(settings);
+  for (const move of moves) {
+    state = applyMove(state, move);
+  }
+  return state;
+}
+
+// Serialize GameState to a plain object for JSON/WebSocket transport
+export function serializeGameState(state: GameState) {
+  return {
+    ...state,
+    board: serializeBoard(state.board),
+    // Don't send other players' racks — filter nulls from sparse array
+    players: state.players.filter(Boolean).map((p) => ({ ...p!, rack: [] })),
+  };
+}
+
+export function deserializeGameState(
+  data: ReturnType<typeof serializeGameState> & { board: Parameters<typeof deserializeBoard>[0] },
+): GameState {
+  return {
+    ...data,
+    board: deserializeBoard(data.board),
+  };
+}
