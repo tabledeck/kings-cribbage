@@ -13,7 +13,7 @@ import { TileRack } from "~/components/game/TileRack";
 import { ScoreBoard } from "~/components/game/ScoreBoard";
 import { GameControls } from "~/components/game/GameControls";
 import { Chat } from "~/components/chat/Chat";
-import { useGameWebSocket } from "~/hooks/useGameWebSocket";
+import { useGameWebSocket } from "@tabledeck/game-room/client";
 import { useSounds } from "~/hooks/useSounds";
 import { useScorePopups } from "~/components/game/ScorePopup";
 
@@ -236,7 +236,8 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
     seat: mySeat,
     name: myName,
     onMessage: useCallback(
-      (msg: ServerMessage) => {
+      (rawMsg: unknown) => {
+        const msg = rawMsg as ServerMessage;
         switch (msg.type) {
           case "game_state": {
             const s = msg.state as any;

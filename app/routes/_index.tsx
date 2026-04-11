@@ -51,6 +51,9 @@ export default function Index({ loaderData }: Route.ComponentProps) {
   return (
     <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center p-4">
       {/* Header */}
+      <a href="https://tabledeck.us" className="absolute top-4 left-4 text-gray-500 hover:text-gray-300 text-sm">
+        ← tabledeck.us
+      </a>
       <div className="absolute top-4 right-4 flex gap-3">
         {user ? (
           <>
