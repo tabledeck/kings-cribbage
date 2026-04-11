@@ -84,6 +84,25 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const shareUrl = `${url.protocol}//${url.host}/game/${gameId}`;
 
+  // Notify DO about this seated player so it can seat them and trigger onAllPlayersSeated.
+  // handleJoin is idempotent — safe to call on every page load / reconnect.
+  if (mySeat >= 0) {
+    try {
+      const env = (context as any).cloudflare?.env as Env | undefined;
+      if (env) {
+        const doId = env.GAME_ROOM.idFromName(gameId);
+        const stub = env.GAME_ROOM.get(doId);
+        await stub.fetch(new Request("http://internal/join", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ seat: mySeat, name: myName }),
+        }));
+      }
+    } catch {
+      // Non-fatal — WS connect will recover via getPrivateStateForSeat
+    }
+  }
+
   // Fetch game state from Durable Object (for SSR)
   let boardData: unknown = null;
   let doPlayers: unknown[] = [];
@@ -216,6 +235,19 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
 
   const { play, muted, toggleMute } = useSounds();
   const { popups, addPopup } = useScorePopups();
+
+  // Merge fresh DB players into state whenever the loader revalidates (e.g. after WS
+  // reconnect). Keeps real-time WS updates (player_joined) as the primary path but
+  // ensures the player list stays in sync if a broadcast was missed.
+  useEffect(() => {
+    setPlayers((prev) => {
+      const byKey = new Map(prev.map((p) => [p.seat, p]));
+      for (const dp of dbPlayers) {
+        if (!byKey.has(dp.seat)) byKey.set(dp.seat, dp);
+      }
+      return [...byKey.values()].sort((a, b) => a.seat - b.seat);
+    });
+  }, [dbPlayers]);
 
   // Staged placement state
   const [stagedPlacements, setStagedPlacements] = useState<Placement[]>([]);
