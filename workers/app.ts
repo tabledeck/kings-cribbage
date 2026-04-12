@@ -24,7 +24,9 @@ export default {
       const gameId = wsMatch[1];
       const id = env.GAME_ROOM.idFromName(gameId);
       const stub = env.GAME_ROOM.get(id);
-      return stub.fetch(request);
+      const doUrl = new URL(request.url);
+      doUrl.pathname = "/ws";
+      return stub.fetch(new Request(doUrl.toString(), request));
     }
 
     // Internal DO→DB move persistence calls

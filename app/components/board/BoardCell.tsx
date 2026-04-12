@@ -44,7 +44,7 @@ export function BoardCell({
         <TileDisplay
           tile={tile}
           staged={staged}
-          size="sm"
+          size="md"
         />
       )}
     </div>

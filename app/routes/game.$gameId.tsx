@@ -13,9 +13,18 @@ import { TileRack } from "~/components/game/TileRack";
 import { ScoreBoard } from "~/components/game/ScoreBoard";
 import { GameControls } from "~/components/game/GameControls";
 import { Chat } from "~/components/chat/Chat";
+import { TileDisplay } from "~/components/board/Tile";
 import { useGameWebSocket } from "@tabledeck/game-room/client";
 import { useSounds } from "~/hooks/useSounds";
 import { useScorePopups } from "~/components/game/ScorePopup";
+import {
+  DndContext,
+  DragOverlay,
+  closestCenter,
+  type DragStartEvent,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { restrictToWindowEdges } from "@dnd-kit/modifiers";
 
 export function meta({ params }: Route.MetaArgs) {
   return [{ title: `Game ${params.gameId} — King's Cribbage` }];
@@ -252,6 +261,7 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
   // Staged placement state
   const [stagedPlacements, setStagedPlacements] = useState<Placement[]>([]);
   const [rackFlips, setRackFlips] = useState<Map<number, boolean>>(new Map());
+  const [gameError, setGameError] = useState<string | null>(null);
 
   // Chat state
   const [chatMessages, setChatMessages] = useState<
@@ -324,6 +334,10 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
           case "tiles_drawn":
             setMyRack(msg.tiles as Tile[]);
             setStagedPlacements([]);
+            setGameError(null);
+            break;
+          case "error":
+            setGameError((msg as any).message ?? "Something went wrong");
             break;
           case "player_joined": {
             const pj = msg as any;
@@ -396,6 +410,31 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
     }
   }, [joinFetcher.state, joinFetcher.data]);
 
+  const [activeTile, setActiveTile] = useState<Tile | null>(null);
+
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const tile = event.active.data.current?.tile as Tile | undefined;
+    if (tile) setActiveTile(tile);
+  }, []);
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      setActiveTile(null);
+      const tile = event.active.data.current?.tile as Tile | undefined;
+      const cellData = event.over?.data.current as { row: number; col: number } | undefined;
+      if (!tile || !cellData) return;
+      if (currentTurn !== mySeat || status !== "active") return;
+      setStagedPlacements((prev) => {
+        const key = `${cellData.row},${cellData.col}`;
+        if (prev.find((p) => `${p.row},${p.col}` === key)) return prev;
+        if (prev.find((p) => p.tile.id === tile.id)) return prev;
+        return [...prev, { row: cellData.row, col: cellData.col, tile }];
+      });
+      setSelectedTileId(null);
+    },
+    [currentTurn, mySeat, status],
+  );
+
   const handleStageTile = useCallback((placement: Placement) => {
     setStagedPlacements((prev) => {
       const key = `${placement.row},${placement.col}`;
@@ -432,9 +471,10 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
       board.size === 0,
     );
     if (!validation.valid) {
-      alert(validation.reason);
+      setGameError(validation.reason);
       return;
     }
+    setGameError(null);
     send({
       type: "place_tiles",
       placements: stagedPlacements.map((p) => ({
@@ -449,6 +489,7 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
   const handleReset = useCallback(() => {
     setStagedPlacements([]);
     setSelectedTileId(null);
+    setGameError(null);
   }, []);
 
   const handlePass = useCallback(() => {
@@ -594,60 +635,76 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
         />
       </div>
 
-      {/* Board */}
-      <Board
-        board={board}
-        stagedPlacements={stagedPlacements}
-        playerRack={myRack}
-        isMyTurn={isMyTurn}
-        isTouchDevice={isTouchDevice}
-        onStageTile={handleStageTile}
-        onUnstage={(tileId) =>
-          setStagedPlacements((prev) => prev.filter((p) => p.tile.id !== tileId))
-        }
-        onFlipTile={handleFlipTile}
-        popups={popups}
-      />
+      {/* Board + Rack share a DndContext so DraggableTile and BoardCell drop targets can communicate */}
+      <DndContext
+        collisionDetection={closestCenter}
+        modifiers={[restrictToWindowEdges]}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <Board
+          board={board}
+          stagedPlacements={stagedPlacements}
+          playerRack={myRack}
+          isMyTurn={isMyTurn}
+          isTouchDevice={isTouchDevice}
+          selectedTile={myRack.find((t) => t.id === selectedTileId) ?? null}
+          onStageTile={handleStageTile}
+          onUnstage={(tileId) =>
+            setStagedPlacements((prev) => prev.filter((p) => p.tile.id !== tileId))
+          }
+          onFlipTile={handleFlipTile}
+          onClearSelectedTile={() => setSelectedTileId(null)}
+          popups={popups}
+        />
 
-      {/* Rack + Controls */}
-      {mySeat >= 0 && (
-        <div className="w-full max-w-2xl space-y-2">
-          <TileRack
-            tiles={myRack}
-            stagedIds={stagedIds}
-            selectedId={selectedTileId}
-            isTouchDevice={isTouchDevice}
-            isMyTurn={isMyTurn}
-            onSelectTile={(tile) =>
-              setSelectedTileId((prev) => (prev === tile.id ? null : tile.id))
-            }
-            onFlipTile={handleFlipTile}
-          />
+        {/* Rack + Controls */}
+        {mySeat >= 0 && (
+          <div className="w-full max-w-2xl space-y-2">
+            <TileRack
+              tiles={myRack}
+              stagedIds={stagedIds}
+              selectedId={selectedTileId}
+              isTouchDevice={isTouchDevice}
+              isMyTurn={isMyTurn}
+              onSelectTile={(tile) =>
+                setSelectedTileId((prev) => (prev === tile.id ? null : tile.id))
+              }
+              onFlipTile={handleFlipTile}
+            />
 
-          <div className="flex items-center gap-2">
-            <div className="flex-1">
-              <GameControls
-                stagedPlacements={stagedPlacements}
-                board={board}
-                isMyTurn={isMyTurn}
-                isFirstMove={board.size === 0}
-                onConfirm={handleConfirm}
-                onReset={handleReset}
-                onPass={handlePass}
-                onExchange={(ids) => send({ type: "exchange_tiles", tileIds: ids })}
-                rackTileIds={myRack.map((t) => t.id)}
+            {gameError && (
+              <p className="text-red-400 text-sm px-1">{gameError}</p>
+            )}
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <GameControls
+                  stagedPlacements={stagedPlacements}
+                  board={board}
+                  isMyTurn={isMyTurn}
+                  isFirstMove={board.size === 0}
+                  myRack={myRack}
+                  onConfirm={handleConfirm}
+                  onReset={handleReset}
+                  onPass={handlePass}
+                  onExchange={(ids) => send({ type: "exchange_tiles", tileIds: ids })}
+                />
+              </div>
+              <Chat
+                messages={chatMessages}
+                yourSeat={mySeat}
+                onSend={(presetId) => send({ type: "chat", presetId })}
+                isOpen={chatOpen}
+                onToggle={() => setChatOpen((v) => !v)}
               />
             </div>
-            <Chat
-              messages={chatMessages}
-              yourSeat={mySeat}
-              onSend={(presetId) => send({ type: "chat", presetId })}
-              isOpen={chatOpen}
-              onToggle={() => setChatOpen((v) => !v)}
-            />
           </div>
-        </div>
-      )}
+        )}
+
+        <DragOverlay>
+          {activeTile && <TileDisplay tile={activeTile} size="md" />}
+        </DragOverlay>
+      </DndContext>
     </div>
   );
 }
