@@ -185,8 +185,49 @@ export function scoreMove(
   return { lineScores, bonusFirstMove, bonusAllFive, bonusFlush, total };
 }
 
-// Returns total points if the move scores > 0, or 0 if it doesn't score at all.
-// Used for quick validation check (all tiles must participate in scoring).
+// Returns true if `tile` is a member of at least one fifteen, pair, or run in `tiles`.
+function tileParticipatesInLine(tile: Tile, tiles: Tile[]): boolean {
+  const idx = tiles.findIndex((t) => t.id === tile.id);
+  if (idx === -1) return false;
+
+  const values = tiles.map(tileValue);
+  const ordinals = tiles.map(rankOrdinal);
+  const tv = values[idx];
+  const to = ordinals[idx];
+
+  // Fifteen: any subset of the other tiles sums to (15 - tv)
+  const otherValues = values.filter((_, i) => i !== idx);
+  const target = 15 - tv;
+  if (target >= 0 && canSumTo(otherValues, target)) return true;
+
+  // Pair: another tile with the same ordinal
+  if (ordinals.some((o, i) => i !== idx && o === to)) return true;
+
+  // Run: tile's ordinal is part of a consecutive sequence of 3+ unique ordinals
+  const uniqueSorted = [...new Set(ordinals)].sort((a, b) => a - b);
+  let start = 0;
+  for (let i = 1; i <= uniqueSorted.length; i++) {
+    const isEnd =
+      i === uniqueSorted.length || uniqueSorted[i] !== uniqueSorted[i - 1] + 1;
+    if (isEnd) {
+      const len = i - start;
+      if (len >= 3 && uniqueSorted.slice(start, i).includes(to)) return true;
+      start = i;
+    }
+  }
+
+  return false;
+}
+
+function canSumTo(values: number[], target: number): boolean {
+  if (target === 0) return true;
+  if (values.length === 0 || target < 0) return false;
+  const [first, ...rest] = values;
+  return canSumTo(rest, target - first) || canSumTo(rest, target);
+}
+
+// Every placed tile must be a member of at least one scoring combination
+// (fifteen, pair, or run) within a valid line it participates in.
 export function moveSatisfiesScoring(
   board: BoardState,
   placements: Placement[],
@@ -200,7 +241,6 @@ export function moveSatisfiesScoring(
     });
   }
 
-  // Every placed tile must be part of at least one scoring line
   const rows = new Set(placements.map((p) => p.row));
   const cols = new Set(placements.map((p) => p.col));
   const primaryDir: "row" | "col" =
@@ -210,9 +250,16 @@ export function moveSatisfiesScoring(
   for (const p of placements) {
     const inPrimary = getContiguousLine(tempBoard, p.row, p.col, primaryDir);
     const inCross = getContiguousLine(tempBoard, p.row, p.col, crossDir);
-    const primaryScores = inPrimary.length >= 2 && inPrimary.length <= 5 && scoreLine(inPrimary).subtotal > 0;
-    const crossScores = inCross.length >= 2 && inCross.length <= 5 && scoreLine(inCross).subtotal > 0;
-    if (!primaryScores && !crossScores) return false;
+
+    const primaryValid = inPrimary.length >= 2 && inPrimary.length <= 5;
+    const crossValid = inCross.length >= 2 && inCross.length <= 5;
+
+    const participatesInPrimary =
+      primaryValid && tileParticipatesInLine(p.tile, inPrimary);
+    const participatesInCross =
+      crossValid && tileParticipatesInLine(p.tile, inCross);
+
+    if (!participatesInPrimary && !participatesInCross) return false;
   }
 
   return true;
