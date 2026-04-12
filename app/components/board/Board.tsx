@@ -33,6 +33,7 @@ export function Board({
   isTouchDevice,
   selectedTile,
   onStageTile,
+  onUnstage,
   onClearSelectedTile,
   popups = [],
 }: BoardProps) {
@@ -78,6 +79,9 @@ export function Board({
             isLastPlaced={isLastPlaced && !stagedTile}
             onTapToPlace={
               isTouchDevice && isMyTurn && !tile ? handleTapCell : undefined
+            }
+            onUnstage={
+              stagedTile && isMyTurn ? () => onUnstage(stagedTile.id) : undefined
             }
           />,
         );

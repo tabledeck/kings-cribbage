@@ -5,9 +5,7 @@ interface TileRackProps {
   tiles: Tile[];
   stagedIds: Set<number>;
   selectedId: number | null;
-  isTouchDevice: boolean;
   isMyTurn: boolean;
-  onSelectTile?: (tile: Tile) => void;
   onFlipTile?: (tileId: number) => void;
 }
 
@@ -15,9 +13,7 @@ export function TileRack({
   tiles,
   stagedIds,
   selectedId,
-  isTouchDevice,
   isMyTurn,
-  onSelectTile,
   onFlipTile,
 }: TileRackProps) {
   return (
@@ -37,26 +33,6 @@ export function TileRack({
                 key={tile.id}
                 className="w-9 h-11 rounded border-2 border-dashed border-gray-600 opacity-30"
               />
-            );
-          }
-
-          if (isTouchDevice) {
-            return (
-              <div
-                key={tile.id}
-                onClick={() => isMyTurn && onSelectTile?.(tile)}
-                className={`cursor-pointer rounded transition-transform ${
-                  isSelected ? "scale-110 ring-2 ring-yellow-400" : ""
-                }`}
-              >
-                <TileDisplay
-                  tile={tile}
-                  size="md"
-                  onFlip={
-                    tile.rank === "6" ? () => onFlipTile?.(tile.id) : undefined
-                  }
-                />
-              </div>
             );
           }
 

@@ -8,7 +8,7 @@ interface TileProps {
   tile: TileType;
   draggable?: boolean;
   staged?: boolean;
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "fill";
   onFlip?: () => void;
 }
 
@@ -21,6 +21,7 @@ const SIZES = {
   sm: "w-7 h-9 text-xs",
   md: "w-9 h-11 text-sm",
   lg: "w-12 h-14 text-base",
+  fill: "w-full h-full text-xs",
 };
 
 export function TileDisplay({

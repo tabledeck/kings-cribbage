@@ -10,6 +10,7 @@ interface BoardCellProps {
   isCenter?: boolean;
   isLastPlaced?: boolean;
   onTapToPlace?: (row: number, col: number) => void; // mobile tap-to-place
+  onUnstage?: () => void; // click staged tile to remove it
 }
 
 export function BoardCell({
@@ -20,6 +21,7 @@ export function BoardCell({
   isCenter,
   isLastPlaced,
   onTapToPlace,
+  onUnstage,
 }: BoardCellProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: `cell-${row}-${col}`,
@@ -30,11 +32,15 @@ export function BoardCell({
   return (
     <div
       ref={setNodeRef}
-      onClick={!tile && onTapToPlace ? () => onTapToPlace(row, col) : undefined}
+      onClick={
+        staged && onUnstage ? onUnstage :
+        !tile && onTapToPlace ? () => onTapToPlace(row, col) :
+        undefined
+      }
       className={`
         aspect-square rounded flex items-center justify-center transition-colors
         border border-gray-700/50
-        ${!tile && onTapToPlace ? "cursor-pointer" : ""}
+        ${staged && onUnstage ? "cursor-pointer" : !tile && onTapToPlace ? "cursor-pointer" : ""}
         ${isCenter && !tile ? "bg-emerald-900/40 border-emerald-600/50" : "bg-gray-800/40"}
         ${isOver ? "bg-emerald-800/60 border-emerald-400" : ""}
         ${isLastPlaced ? "bg-emerald-900/30" : ""}
@@ -44,7 +50,7 @@ export function BoardCell({
         <TileDisplay
           tile={tile}
           staged={staged}
-          size="md"
+          size="fill"
         />
       )}
     </div>

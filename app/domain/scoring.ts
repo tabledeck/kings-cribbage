@@ -210,8 +210,8 @@ export function moveSatisfiesScoring(
   for (const p of placements) {
     const inPrimary = getContiguousLine(tempBoard, p.row, p.col, primaryDir);
     const inCross = getContiguousLine(tempBoard, p.row, p.col, crossDir);
-    const primaryScores = inPrimary.length >= 2 && scoreLine(inPrimary).subtotal > 0;
-    const crossScores = inCross.length >= 2 && scoreLine(inCross).subtotal > 0;
+    const primaryScores = inPrimary.length >= 2 && inPrimary.length <= 5 && scoreLine(inPrimary).subtotal > 0;
+    const crossScores = inCross.length >= 2 && inCross.length <= 5 && scoreLine(inCross).subtotal > 0;
     if (!primaryScores && !crossScores) return false;
   }
 

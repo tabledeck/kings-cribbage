@@ -3,6 +3,7 @@ import {
   posKey,
   isAdjacentToOccupied,
   CENTER,
+  getContiguousLine,
   type BoardState,
 } from "./board";
 import { type Tile } from "./tiles";
@@ -100,6 +101,21 @@ export function validateMove(
       if (!tempBoard.has(posKey(r, c))) {
         return { valid: false, reason: "Tiles must form a contiguous line (no empty gaps)" };
       }
+    }
+  }
+
+  // Primary line must not exceed 5 tiles total (placed + existing)
+  const primaryLine = getContiguousLine(tempBoard, placements[0].row, placements[0].col, direction);
+  if (primaryLine.length > 5) {
+    return { valid: false, reason: "A line cannot contain more than 5 tiles" };
+  }
+
+  // Each cross-line must also not exceed 5 tiles
+  const crossDir: "row" | "col" = direction === "row" ? "col" : "row";
+  for (const p of placements) {
+    const crossLine = getContiguousLine(tempBoard, p.row, p.col, crossDir);
+    if (crossLine.length > 5) {
+      return { valid: false, reason: "A line cannot contain more than 5 tiles" };
     }
   }
 

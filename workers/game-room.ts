@@ -23,7 +23,11 @@ export class GameRoomDO extends BaseGameRoomDO<GameState, GameSettings, Env> {
   }
 
   protected serializeState(state: GameState): Record<string, unknown> {
-    return serializeGameState(state) as unknown as Record<string, unknown>;
+    // Preserve full player racks in storage. serializeGameState strips them
+    // (designed for network privacy), but we need them to survive DO eviction.
+    const base = serializeGameState(state) as any;
+    base.players = state.players.filter(Boolean).map((p) => ({ ...p! }));
+    return base as Record<string, unknown>;
   }
 
   protected deserializeState(data: Record<string, unknown>): GameState {
@@ -169,11 +173,17 @@ export class GameRoomDO extends BaseGameRoomDO<GameState, GameSettings, Env> {
       return;
     }
 
-    const placements = rawPlacements.map((p) => {
-      const tile = player.rack.find((t) => t.id === p.tileId);
-      if (!tile) throw new Error(`Tile ${p.tileId} not in rack`);
-      return { row: p.row, col: p.col, tile: { ...tile, flipped: p.flipped } };
-    });
+    let placements: { row: number; col: number; tile: Tile }[];
+    try {
+      placements = rawPlacements.map((p) => {
+        const tile = player.rack.find((t) => t.id === p.tileId);
+        if (!tile) throw new Error(`Tile ${p.tileId} not in rack — rack may be stale, try refreshing`);
+        return { row: p.row, col: p.col, tile: { ...tile, flipped: p.flipped } };
+      });
+    } catch (err) {
+      ws.send(JSON.stringify({ type: "error", message: (err as Error).message }));
+      return;
+    }
 
     const validation = validateMove(
       this.gameState.board,

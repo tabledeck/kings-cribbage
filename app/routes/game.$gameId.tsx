@@ -21,6 +21,10 @@ import {
   DndContext,
   DragOverlay,
   closestCenter,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
   type DragStartEvent,
   type DragEndEvent,
 } from "@dnd-kit/core";
@@ -412,6 +416,11 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
 
   const [activeTile, setActiveTile] = useState<Tile | null>(null);
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
+  );
+
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const tile = event.active.data.current?.tile as Tile | undefined;
     if (tile) setActiveTile(tile);
@@ -637,6 +646,7 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
 
       {/* Board + Rack share a DndContext so DraggableTile and BoardCell drop targets can communicate */}
       <DndContext
+        sensors={sensors}
         collisionDetection={closestCenter}
         modifiers={[restrictToWindowEdges]}
         onDragStart={handleDragStart}
@@ -665,11 +675,7 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
               tiles={myRack}
               stagedIds={stagedIds}
               selectedId={selectedTileId}
-              isTouchDevice={isTouchDevice}
               isMyTurn={isMyTurn}
-              onSelectTile={(tile) =>
-                setSelectedTileId((prev) => (prev === tile.id ? null : tile.id))
-              }
               onFlipTile={handleFlipTile}
             />
 
