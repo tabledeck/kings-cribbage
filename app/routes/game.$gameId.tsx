@@ -68,6 +68,12 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
       }
       myName = user.name || user.email;
       if (mySeat >= 0) {
+        // Sync user into D1_DATABASE (users live in AUTH_DB; D1 enforces FK constraints)
+        await db.user.upsert({
+          where: { id: user.id },
+          create: { id: user.id, email: user.email, name: user.name || "" },
+          update: { name: user.name || "", email: user.email },
+        });
         await db.gamePlayer.create({
           data: { gameId, userId: user.id, seat: mySeat },
         });

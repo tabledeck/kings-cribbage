@@ -33,6 +33,7 @@ export interface GameState {
   firstMoveMade: boolean;
   winner: number | null; // seat index
   guesses: (number | null)[]; // indexed by seat, null = not guessed yet
+  guessTarget: number | null; // server-only: the secret target for the guess game
 }
 
 export type MoveType = "place" | "pass" | "exchange" | "start" | "join" | "guess";
@@ -93,6 +94,7 @@ export function initializeGame(settings: GameSettings): GameState {
     firstMoveMade: false,
     winner: null,
     guesses: [],
+    guessTarget: null,
   };
 }
 
@@ -294,8 +296,10 @@ export function replayMoves(
 
 // Serialize GameState to a plain object for JSON/WebSocket transport
 export function serializeGameState(state: GameState) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { guessTarget: _hidden, ...rest } = state;
   return {
-    ...state,
+    ...rest,
     board: serializeBoard(state.board),
     // Don't send other players' racks — filter nulls from sparse array
     players: state.players.filter(Boolean).map((p) => ({ ...p!, rack: [] })),
@@ -304,10 +308,11 @@ export function serializeGameState(state: GameState) {
 }
 
 export function deserializeGameState(
-  data: ReturnType<typeof serializeGameState> & { board: Parameters<typeof deserializeBoard>[0] },
+  data: ReturnType<typeof serializeGameState> & { board: Parameters<typeof deserializeBoard>[0]; guessTarget?: number | null },
 ): GameState {
   return {
     ...data,
     board: deserializeBoard(data.board),
+    guessTarget: data.guessTarget ?? null,
   };
 }

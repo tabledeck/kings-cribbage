@@ -17,8 +17,6 @@ import { ClientMessage } from "../app/domain/messages";
 import type { Tile } from "../app/domain/tiles";
 
 export class GameRoomDO extends BaseGameRoomDO<GameState, GameSettings, Env> {
-  // Target number for the pre-game guess. Stored privately so clients can't see it.
-  private _guessTarget: number | null = null;
   // ── Abstract implementations ─────────────────────────────────────────────
 
   protected initializeState(settings: GameSettings): GameState {
@@ -63,14 +61,12 @@ export class GameRoomDO extends BaseGameRoomDO<GameState, GameSettings, Env> {
   protected async onAllPlayersSeated(): Promise<void> {
     if (!this.gameState || !this.settings) return;
 
-    // Pick a secret target number 1-10 for the guess game
-    this._guessTarget = Math.floor(Math.random() * 10) + 1;
-
-    // Transition to guessing phase
+    // Transition to guessing phase with a persisted secret target
     this.gameState = {
       ...this.gameState,
       status: "guessing",
       guesses: new Array(this.settings.maxPlayers).fill(null),
+      guessTarget: Math.floor(Math.random() * 10) + 1,
     };
     await this.persistState();
 
@@ -86,10 +82,10 @@ export class GameRoomDO extends BaseGameRoomDO<GameState, GameSettings, Env> {
   }
 
   private async startGameAfterGuess(): Promise<void> {
-    if (!this.gameState || !this.settings || this._guessTarget === null) return;
+    if (!this.gameState || !this.settings || this.gameState.guessTarget === null) return;
 
     const guesses = this.gameState.guesses;
-    const target = this._guessTarget;
+    const target = this.gameState.guessTarget;
 
     // Determine closest guesser (ties: lower seat wins)
     let firstSeat = 0;
