@@ -7,6 +7,7 @@ interface TileRackProps {
   selectedId: number | null;
   isMyTurn: boolean;
   onFlipTile?: (tileId: number) => void;
+  onSelectTile?: (tileId: number) => void;
 }
 
 export function TileRack({
@@ -15,6 +16,7 @@ export function TileRack({
   selectedId,
   isMyTurn,
   onFlipTile,
+  onSelectTile,
 }: TileRackProps) {
   return (
     <div className="flex items-center gap-2 p-3 bg-gray-900 rounded-xl border border-gray-700">
@@ -37,14 +39,19 @@ export function TileRack({
           }
 
           return (
-            <DraggableTile
+            <div
               key={tile.id}
-              tile={tile}
-              size="md"
-              onFlip={
-                tile.rank === "6" ? () => onFlipTile?.(tile.id) : undefined
-              }
-            />
+              onClick={() => isMyTurn && onSelectTile?.(tile.id)}
+              className={isSelected ? "rounded ring-2 ring-yellow-400 ring-offset-1 ring-offset-gray-900" : "rounded"}
+            >
+              <DraggableTile
+                tile={tile}
+                size="md"
+                onFlip={
+                  tile.rank === "6" ? () => onFlipTile?.(tile.id) : undefined
+                }
+              />
+            </div>
           );
         })}
         {/* Empty slots */}

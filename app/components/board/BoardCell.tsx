@@ -7,6 +7,7 @@ interface BoardCellProps {
   col: number;
   tile?: Tile;
   staged?: boolean; // tile placed this turn but not yet confirmed
+  invalid?: boolean; // staged tile failed scoring validation
   isCenter?: boolean;
   isLastPlaced?: boolean;
   onTapToPlace?: (row: number, col: number) => void; // mobile tap-to-place
@@ -18,6 +19,7 @@ export function BoardCell({
   col,
   tile,
   staged,
+  invalid,
   isCenter,
   isLastPlaced,
   onTapToPlace,
@@ -50,6 +52,7 @@ export function BoardCell({
         <TileDisplay
           tile={tile}
           staged={staged}
+          invalid={invalid}
           size="fill"
         />
       )}

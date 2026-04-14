@@ -254,15 +254,44 @@ export function moveSatisfiesScoring(
     const primaryValid = inPrimary.length >= 2 && inPrimary.length <= 5;
     const crossValid = inCross.length >= 2 && inCross.length <= 5;
 
-    const participatesInPrimary =
-      primaryValid && tileParticipatesInLine(p.tile, inPrimary);
-    const participatesInCross =
-      crossValid && tileParticipatesInLine(p.tile, inCross);
-
-    if (!participatesInPrimary && !participatesInCross) return false;
+    // Every valid line the tile touches must have a scoring combination
+    if (primaryValid && !tileParticipatesInLine(p.tile, inPrimary)) return false;
+    if (crossValid && !tileParticipatesInLine(p.tile, inCross)) return false;
   }
 
   return true;
+}
+
+// Returns the subset of placements that fail the scoring participation check.
+// Useful for highlighting invalid tiles on the client after a rejected move.
+export function getInvalidPlacements(
+  board: BoardState,
+  placements: Placement[],
+): Placement[] {
+  const tempBoard: BoardState = new Map(board);
+  for (const p of placements) {
+    tempBoard.set(posKey(p.row, p.col), {
+      tile: p.tile,
+      seat: -1,
+      turnPlaced: -1,
+    });
+  }
+
+  const rows = new Set(placements.map((p) => p.row));
+  const cols = new Set(placements.map((p) => p.col));
+  const primaryDir: "row" | "col" =
+    rows.size === 1 ? "row" : cols.size === 1 ? "col" : "row";
+  const crossDir: "row" | "col" = primaryDir === "row" ? "col" : "row";
+
+  return placements.filter((p) => {
+    const inPrimary = getContiguousLine(tempBoard, p.row, p.col, primaryDir);
+    const inCross = getContiguousLine(tempBoard, p.row, p.col, crossDir);
+    const primaryValid = inPrimary.length >= 2 && inPrimary.length <= 5;
+    const crossValid = inCross.length >= 2 && inCross.length <= 5;
+    if (primaryValid && !tileParticipatesInLine(p.tile, inPrimary)) return true;
+    if (crossValid && !tileParticipatesInLine(p.tile, inCross)) return true;
+    return false;
+  });
 }
 
 // Remaining tile point values subtracted at game end

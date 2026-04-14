@@ -24,6 +24,7 @@ interface BoardProps {
   onFlipTile: (tileId: number) => void;
   onClearSelectedTile: () => void;
   popups?: ScorePopup[];
+  invalidStagedPositions?: Set<string>;
 }
 
 export function Board({
@@ -36,6 +37,7 @@ export function Board({
   onUnstage,
   onClearSelectedTile,
   popups = [],
+  invalidStagedPositions,
 }: BoardProps) {
   const stagedMap = new Map(
     stagedPlacements.map((p) => [posKey(p.row, p.col), p.tile]),
@@ -75,6 +77,7 @@ export function Board({
             col={c}
             tile={tile}
             staged={!!stagedTile}
+            invalid={!!stagedTile && (invalidStagedPositions?.has(key) ?? false)}
             isCenter={r === 6 && c === 6}
             isLastPlaced={isLastPlaced && !stagedTile}
             onTapToPlace={

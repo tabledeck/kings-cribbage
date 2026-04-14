@@ -8,6 +8,7 @@ interface TileProps {
   tile: TileType;
   draggable?: boolean;
   staged?: boolean;
+  invalid?: boolean;
   size?: "sm" | "md" | "lg" | "fill";
   onFlip?: () => void;
 }
@@ -27,6 +28,7 @@ const SIZES = {
 export function TileDisplay({
   tile,
   staged,
+  invalid,
   size = "md",
   onFlip,
 }: TileProps) {
@@ -43,7 +45,7 @@ export function TileDisplay({
         relative rounded border-2 font-bold flex items-center justify-center select-none
         ${SUIT_COLORS[tile.color]}
         ${SIZES[size]}
-        ${staged ? "ring-2 ring-yellow-400 ring-offset-1 ring-offset-gray-950" : ""}
+        ${invalid ? "ring-2 ring-red-500 ring-offset-1 ring-offset-gray-950" : staged ? "ring-2 ring-yellow-400 ring-offset-1 ring-offset-gray-950" : ""}
         ${onFlip && canFlip ? "cursor-pointer" : ""}
       `}
       onClick={canFlip ? onFlip : undefined}
