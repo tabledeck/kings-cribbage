@@ -74,6 +74,7 @@ export function DraggableTile({
     transform: CSS.Translate.toString(transform),
     opacity: isDragging ? 0.4 : 1,
     cursor: "grab",
+    touchAction: "none" as const,
   };
 
   return (

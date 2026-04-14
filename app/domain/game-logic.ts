@@ -23,7 +23,7 @@ export interface GameSettings {
 }
 
 export interface GameState {
-  status: "waiting" | "active" | "finished";
+  status: "waiting" | "guessing" | "active" | "finished";
   board: BoardState;
   bag: Tile[];
   players: PlayerState[];
@@ -32,15 +32,16 @@ export interface GameState {
   consecutivePasses: number;
   firstMoveMade: boolean;
   winner: number | null; // seat index
+  guesses: (number | null)[]; // indexed by seat, null = not guessed yet
 }
 
-export type MoveType = "place" | "pass" | "exchange" | "start" | "join";
+export type MoveType = "place" | "pass" | "exchange" | "start" | "join" | "guess";
 
 export interface MoveRecord {
   seat: number;
   sequence: number;
   moveType: MoveType;
-  data: PlaceMoveData | ExchangeMoveData | PassMoveData | StartMoveData | JoinMoveData;
+  data: PlaceMoveData | ExchangeMoveData | PassMoveData | StartMoveData | JoinMoveData | GuessMoveData;
   scoreEarned: number;
 }
 
@@ -63,6 +64,15 @@ export interface StartMoveData {
   type: "start";
   // initial tile draws for all players
   initialDraws: Array<{ seat: number; tiles: Tile[] }>;
+  firstSeat: number; // who goes first (winner of guess game)
+  guessTarget: number; // the target number (1-10)
+  guesses: (number | null)[]; // each player's guess, indexed by seat
+}
+
+export interface GuessMoveData {
+  type: "guess";
+  seat: number;
+  number: number; // 1-10
 }
 
 export interface JoinMoveData {
@@ -82,6 +92,7 @@ export function initializeGame(settings: GameSettings): GameState {
     consecutivePasses: 0,
     firstMoveMade: false,
     winner: null,
+    guesses: [],
   };
 }
 
@@ -132,9 +143,20 @@ export function applyMove(state: GameState, move: MoveRecord): GameState {
       break;
     }
 
+    case "guess": {
+      const d = move.data as GuessMoveData;
+      const newGuesses = [...(newState.guesses ?? [])];
+      newGuesses[d.seat] = d.number;
+      newState.guesses = newGuesses;
+      break;
+    }
+
     case "start": {
       const d = move.data as StartMoveData;
       newState.status = "active";
+      // firstSeat may be absent in old replayed games — default to 0
+      newState.currentTurn = d.firstSeat ?? 0;
+      newState.guesses = d.guesses ?? [];
       // Apply initial draws
       for (const draw of d.initialDraws) {
         if (newState.players[draw.seat]) {
@@ -277,6 +299,7 @@ export function serializeGameState(state: GameState) {
     board: serializeBoard(state.board),
     // Don't send other players' racks — filter nulls from sparse array
     players: state.players.filter(Boolean).map((p) => ({ ...p!, rack: [] })),
+    guesses: state.guesses ?? [],
   };
 }
 

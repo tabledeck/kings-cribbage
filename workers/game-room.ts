@@ -9,6 +9,7 @@ import {
   type MoveRecord,
   type PlaceMoveData,
   type ExchangeMoveData,
+  type GuessMoveData,
 } from "../app/domain/game-logic";
 import { validateMove } from "../app/domain/validation";
 import { scoreMove } from "../app/domain/scoring";
@@ -16,6 +17,8 @@ import { ClientMessage } from "../app/domain/messages";
 import type { Tile } from "../app/domain/tiles";
 
 export class GameRoomDO extends BaseGameRoomDO<GameState, GameSettings, Env> {
+  // Target number for the pre-game guess. Stored privately so clients can't see it.
+  private _guessTarget: number | null = null;
   // ── Abstract implementations ─────────────────────────────────────────────
 
   protected initializeState(settings: GameSettings): GameState {
@@ -60,6 +63,55 @@ export class GameRoomDO extends BaseGameRoomDO<GameState, GameSettings, Env> {
   protected async onAllPlayersSeated(): Promise<void> {
     if (!this.gameState || !this.settings) return;
 
+    // Pick a secret target number 1-10 for the guess game
+    this._guessTarget = Math.floor(Math.random() * 10) + 1;
+
+    // Transition to guessing phase
+    this.gameState = {
+      ...this.gameState,
+      status: "guessing",
+      guesses: new Array(this.settings.maxPlayers).fill(null),
+    };
+    await this.persistState();
+
+    // Broadcast guessing phase to each player with their seat
+    const publicState = serializeGameState(this.gameState);
+    for (const ws of this.state.getWebSockets()) {
+      const tags = this.state.getTags(ws);
+      const seat = parseInt(tags[0] ?? "-1");
+      try {
+        ws.send(JSON.stringify({ type: "game_state", state: publicState, yourSeat: seat, yourRack: [] }));
+      } catch { /* closed */ }
+    }
+  }
+
+  private async startGameAfterGuess(): Promise<void> {
+    if (!this.gameState || !this.settings || this._guessTarget === null) return;
+
+    const guesses = this.gameState.guesses;
+    const target = this._guessTarget;
+
+    // Determine closest guesser (ties: lower seat wins)
+    let firstSeat = 0;
+    let bestDiff = Infinity;
+    for (let seat = 0; seat < this.settings.maxPlayers; seat++) {
+      const g = guesses[seat];
+      if (g === null) continue;
+      const diff = Math.abs(g - target);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        firstSeat = seat;
+      }
+    }
+
+    // Broadcast guess reveal before dealing
+    this.broadcast(JSON.stringify({
+      type: "guess_reveal",
+      guesses,
+      guessTarget: target,
+      firstSeat,
+    }));
+
     // Deal 5 tiles to each player
     const bag = [...this.gameState.bag];
     const initialDraws: Array<{ seat: number; tiles: Tile[] }> = [];
@@ -69,10 +121,10 @@ export class GameRoomDO extends BaseGameRoomDO<GameState, GameSettings, Env> {
     }
 
     const startMove: MoveRecord = {
-      seat: 0,
+      seat: firstSeat,
       sequence: this.nextSequence++,
       moveType: "start",
-      data: { type: "start", initialDraws },
+      data: { type: "start", initialDraws, firstSeat, guessTarget: target, guesses },
       scoreEarned: 0,
     };
 
@@ -89,15 +141,8 @@ export class GameRoomDO extends BaseGameRoomDO<GameState, GameSettings, Env> {
         ? this.gameState.players[seat].rack
         : [];
       try {
-        ws.send(JSON.stringify({
-          type: "game_state",
-          state: publicState,
-          yourSeat: seat,
-          yourRack: rack,
-        }));
-      } catch {
-        // Socket closed
-      }
+        ws.send(JSON.stringify({ type: "game_state", state: publicState, yourSeat: seat, yourRack: rack }));
+      } catch { /* closed */ }
     }
   }
 
@@ -118,6 +163,9 @@ export class GameRoomDO extends BaseGameRoomDO<GameState, GameSettings, Env> {
     const msg = result.data;
 
     switch (msg.type) {
+      case "guess_number":
+        await this.handleGuess(ws, seat, msg.number);
+        break;
       case "place_tiles":
         await this.handlePlaceTiles(ws, seat, msg.placements);
         break;
@@ -154,6 +202,52 @@ export class GameRoomDO extends BaseGameRoomDO<GameState, GameSettings, Env> {
   }
 
   // ── Game message handlers ────────────────────────────────────────────────
+
+  private async handleGuess(ws: WebSocket, seat: number, number: number) {
+    if (!this.gameState || !this.settings) return;
+
+    if (this.gameState.status !== "guessing") {
+      ws.send(JSON.stringify({ type: "error", message: "Not in guessing phase" }));
+      return;
+    }
+
+    if (this.gameState.guesses[seat] !== null) {
+      ws.send(JSON.stringify({ type: "error", message: "Already guessed" }));
+      return;
+    }
+
+    const guessMoveRecord: MoveRecord = {
+      seat,
+      sequence: this.nextSequence++,
+      moveType: "guess",
+      data: { type: "guess", seat, number } satisfies GuessMoveData,
+      scoreEarned: 0,
+    };
+
+    this.gameState = applyMove(this.gameState, guessMoveRecord);
+    await this.persistState();
+
+    // Broadcast updated guesses (without revealing target)
+    const publicState = serializeGameState(this.gameState);
+    for (const ws2 of this.state.getWebSockets()) {
+      const tags = this.state.getTags(ws2);
+      const s = parseInt(tags[0] ?? "-1");
+      try {
+        ws2.send(JSON.stringify({ type: "game_state", state: publicState, yourSeat: s, yourRack: [] }));
+      } catch { /* closed */ }
+    }
+
+    // Check if all players have guessed
+    const allGuessed = this.gameState.guesses
+      .slice(0, this.settings.maxPlayers)
+      .every((g) => g !== null);
+
+    if (allGuessed) {
+      // Small delay so clients can see the "everyone has guessed" state before reveal
+      await new Promise((r) => setTimeout(r, 1500));
+      await this.startGameAfterGuess();
+    }
+  }
 
   private async handlePlaceTiles(
     ws: WebSocket,

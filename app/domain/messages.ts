@@ -33,12 +33,18 @@ export const JoinGameMsg = z.object({
   seat: z.number().int().min(0).max(3).optional(),
 });
 
+export const GuessNumberMsg = z.object({
+  type: z.literal("guess_number"),
+  number: z.number().int().min(1).max(10),
+});
+
 export const ClientMessage = z.discriminatedUnion("type", [
   PlaceTilesMsg,
   PassTurnMsg,
   ExchangeTilesMsg,
   ChatMsg,
   JoinGameMsg,
+  GuessNumberMsg,
   z.object({ type: z.literal("ping") }),
 ]);
 
@@ -91,6 +97,13 @@ export interface GameOverMsg {
   winner: number;
 }
 
+export interface GuessRevealMsg {
+  type: "guess_reveal";
+  guesses: (number | null)[];
+  guessTarget: number;
+  firstSeat: number;
+}
+
 export interface ErrorMsg {
   type: "error";
   message: string;
@@ -107,6 +120,7 @@ export type ServerMessage =
   | PlayerJoinedMsg
   | PlayerDisconnectedMsg
   | ChatBroadcastMsg
+  | GuessRevealMsg
   | GameOverMsg
   | ErrorMsg
   | PongMsg;

@@ -245,6 +245,9 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
   const [status, setStatus] = useState(gameStatus);
   const [myRack, setMyRack] = useState<Tile[]>([]);
   const [winner, setWinner] = useState<number | null>(null);
+  const [guesses, setGuesses] = useState<(number | null)[]>([]);
+  const [myGuess, setMyGuess] = useState<number | null>(null);
+  const [guessReveal, setGuessReveal] = useState<{ guesses: (number | null)[]; guessTarget: number; firstSeat: number } | null>(null);
 
   const { play, muted, toggleMute } = useSounds();
   const { popups, addPopup } = useScorePopups();
@@ -295,7 +298,13 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
             })));
             if (s?.currentTurn !== undefined) setCurrentTurn(s.currentTurn);
             if (s?.status) setStatus(s.status);
+            if (s?.guesses) setGuesses(s.guesses);
             if (msg.yourRack) setMyRack(msg.yourRack as Tile[]);
+            break;
+          }
+          case "guess_reveal": {
+            const gr = msg as any;
+            setGuessReveal({ guesses: gr.guesses, guessTarget: gr.guessTarget, firstSeat: gr.firstSeat });
             break;
           }
           case "move_made": {
@@ -471,6 +480,12 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
     );
   }, []);
 
+  const handleGuessNumber = useCallback((n: number) => {
+    if (myGuess !== null || status !== "guessing") return;
+    setMyGuess(n);
+    send({ type: "guess_number", number: n });
+  }, [myGuess, status, send]);
+
   const handleConfirm = useCallback(() => {
     if (stagedPlacements.length === 0) return;
     const validation = validateMove(
@@ -630,6 +645,59 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
             {copied ? "Copied!" : "Copy invite link"}
           </button>
           <p className="text-gray-500 text-xs mt-2">{shareUrl}</p>
+        </div>
+      )}
+
+      {/* Guessing phase */}
+      {(status === "guessing" || guessReveal) && (
+        <div className="bg-gray-900 rounded-xl border border-gray-700 p-5 w-full max-w-2xl text-center">
+          {guessReveal ? (
+            <div>
+              <p className="text-white font-bold text-lg mb-1">The number was <span className="text-yellow-400">{guessReveal.guessTarget}</span>!</p>
+              <div className="space-y-1 mb-3">
+                {sortedPlayers.map((p) => {
+                  const g = guessReveal.guesses[p.seat];
+                  const diff = g !== null ? Math.abs(g - guessReveal.guessTarget) : null;
+                  return (
+                    <p key={p.seat} className={`text-sm ${p.seat === guessReveal.firstSeat ? "text-emerald-400 font-bold" : "text-gray-300"}`}>
+                      {p.name}: guessed {g ?? "?"}{diff !== null ? ` (off by ${diff})` : ""}
+                      {p.seat === guessReveal.firstSeat ? " — goes first!" : ""}
+                    </p>
+                  );
+                })}
+              </div>
+              <p className="text-gray-400 text-xs">Starting game…</p>
+            </div>
+          ) : (
+            <div>
+              <p className="text-white font-bold text-lg mb-1">Guess a number 1–10</p>
+              <p className="text-gray-400 text-sm mb-4">Closest to the secret number goes first!</p>
+              {mySeat >= 0 && myGuess === null ? (
+                <div className="flex flex-wrap justify-center gap-2 mb-4">
+                  {[1,2,3,4,5,6,7,8,9,10].map((n) => (
+                    <button
+                      key={n}
+                      onClick={() => handleGuessNumber(n)}
+                      className="w-10 h-10 rounded-lg bg-gray-700 hover:bg-emerald-600 text-white font-bold text-sm transition-colors"
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-emerald-400 font-medium mb-4">
+                  {mySeat >= 0 ? `You guessed ${myGuess}` : "Spectating"}
+                </p>
+              )}
+              <div className="space-y-1">
+                {sortedPlayers.map((p) => (
+                  <p key={p.seat} className="text-gray-400 text-sm">
+                    {p.name}: {guesses[p.seat] !== undefined && guesses[p.seat] !== null ? "guessed ✓" : "waiting…"}
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
