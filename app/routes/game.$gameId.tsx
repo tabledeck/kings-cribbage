@@ -279,7 +279,7 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
 
   // Chat state
   const [chatMessages, setChatMessages] = useState<
-    Array<{ seat: number; presetId: number; playerName: string; timestamp: number }>
+    Array<{ seat: number; text: string; playerName: string; timestamp: number }>
   >([]);
   const [chatOpen, setChatOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -367,7 +367,7 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
             const cb = msg as any;
             setChatMessages((prev) => [
               ...prev,
-              { seat: cb.seat, presetId: cb.presetId, playerName: cb.playerName, timestamp: Date.now() },
+              { seat: cb.seat, text: cb.text, playerName: cb.playerName, timestamp: Date.now() },
             ]);
             play("chat");
             break;
@@ -763,7 +763,7 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
               <Chat
                 messages={chatMessages}
                 yourSeat={mySeat}
-                onSend={(presetId) => send({ type: "chat", presetId })}
+                onSend={(text) => send({ type: "chat", text })}
                 isOpen={chatOpen}
                 onToggle={() => setChatOpen((v) => !v)}
               />

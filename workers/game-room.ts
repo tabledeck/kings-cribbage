@@ -175,7 +175,7 @@ export class GameRoomDO extends BaseGameRoomDO<GameState, GameSettings, Env> {
         this.broadcast(JSON.stringify({
           type: "chat_broadcast",
           seat,
-          presetId: msg.presetId,
+          text: msg.text,
           playerName: this.gameState.players[seat]?.name ?? playerName,
         }));
         break;

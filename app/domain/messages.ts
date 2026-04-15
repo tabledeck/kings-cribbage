@@ -24,7 +24,7 @@ export const ExchangeTilesMsg = z.object({
 
 export const ChatMsg = z.object({
   type: z.literal("chat"),
-  presetId: z.number().int().min(0).max(17),
+  text: z.string().min(1).max(200),
 });
 
 export const JoinGameMsg = z.object({
@@ -87,7 +87,7 @@ export interface PlayerDisconnectedMsg {
 export interface ChatBroadcastMsg {
   type: "chat_broadcast";
   seat: number;
-  presetId: number;
+  text: string;
   playerName: string;
 }
 

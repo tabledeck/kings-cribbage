@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { CHAT_PRESETS, getChatPreset } from "~/domain/chat";
 
 interface ChatMessage {
   seat: number;
-  presetId: number;
+  text: string;
   playerName: string;
   timestamp: number;
 }
@@ -11,7 +10,7 @@ interface ChatMessage {
 interface ChatProps {
   messages: ChatMessage[];
   yourSeat: number;
-  onSend: (presetId: number) => void;
+  onSend: (text: string) => void;
   isOpen: boolean;
   onToggle: () => void;
 }
@@ -19,6 +18,15 @@ interface ChatProps {
 const SEAT_COLORS = ["text-emerald-400", "text-blue-400", "text-orange-400", "text-purple-400"];
 
 export function Chat({ messages, yourSeat, onSend, isOpen, onToggle }: ChatProps) {
+  const [input, setInput] = useState("");
+
+  const handleSend = () => {
+    if (input.trim()) {
+      onSend(input.trim());
+      setInput("");
+    }
+  };
+
   return (
     <div className="relative">
       <button
@@ -34,7 +42,6 @@ export function Chat({ messages, yourSeat, onSend, isOpen, onToggle }: ChatProps
 
       {isOpen && (
         <div className="absolute bottom-full mb-2 right-0 w-72 bg-gray-900 rounded-xl border border-gray-700 shadow-xl z-10">
-          {/* Message history */}
           <div className="h-36 overflow-y-auto p-3 space-y-1">
             {messages.length === 0 ? (
               <p className="text-gray-600 text-xs text-center pt-4">
@@ -46,27 +53,32 @@ export function Chat({ messages, yourSeat, onSend, isOpen, onToggle }: ChatProps
                   <span className={`font-medium ${SEAT_COLORS[m.seat]}`}>
                     {m.playerName}:
                   </span>{" "}
-                  <span className="text-gray-300">{getChatPreset(m.presetId)}</span>
+                  <span className="text-gray-300">{m.text}</span>
                 </div>
               ))
             )}
           </div>
 
-          {/* Quick send buttons */}
-          <div className="p-2 border-t border-gray-800">
-            <p className="text-gray-600 text-xs mb-2">Quick messages:</p>
-            <div className="grid grid-cols-3 gap-1">
-              {CHAT_PRESETS.map((preset) => (
-                <button
-                  key={preset.id}
-                  onClick={() => onSend(preset.id)}
-                  className="bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs rounded px-2 py-1.5 transition-colors text-left truncate"
-                >
-                  {preset.text}
-                </button>
-              ))}
+          {yourSeat >= 0 && (
+            <div className="flex gap-1 p-2 border-t border-gray-800">
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") handleSend(); }}
+                placeholder="Type a message..."
+                maxLength={200}
+                className="flex-1 bg-gray-800 text-white text-xs rounded-lg px-2 py-1.5 outline-none"
+              />
+              <button
+                onClick={handleSend}
+                disabled={!input.trim()}
+                className="bg-emerald-700 hover:bg-emerald-600 disabled:opacity-40 text-white text-xs rounded-lg px-2 py-1.5 transition-colors"
+              >
+                Send
+              </button>
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>
