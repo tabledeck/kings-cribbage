@@ -31,7 +31,7 @@ export function ScorePopupLayer({ popups, cellSize, boardOffset }: ScorePopupLay
               top: boardOffset.top + p.row * cellSize - 10,
               left: boardOffset.left + p.col * cellSize,
             }}
-            className="text-yellow-300 font-bold text-lg drop-shadow-lg whitespace-nowrap"
+            className="score-popup-text drop-shadow-lg whitespace-nowrap"
           >
             +{p.points}
           </motion.div>

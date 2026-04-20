@@ -26,6 +26,9 @@ export default defineConfig((config) => {
   const env = loadEnv(config.mode, process.cwd(), "");
 
   return {
+    build: {
+      outDir: "dist",
+    },
     resolve: {
       alias:
         config.mode === "development"

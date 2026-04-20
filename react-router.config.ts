@@ -5,6 +5,6 @@ export default {
     v8_middleware: true,
   },
   ssr: true,
-  buildDirectory: "build",
+  buildDirectory: "dist",
   serverBuildFile: "index.js",
 } satisfies Config;

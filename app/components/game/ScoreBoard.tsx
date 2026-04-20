@@ -1,3 +1,5 @@
+import { CrownIcon } from "~/components/icons/CrownIcon";
+
 interface Player {
   seat: number;
   name: string;
@@ -12,12 +14,7 @@ interface ScoreBoardProps {
   status: string;
 }
 
-const SEAT_COLORS = [
-  "text-emerald-400",
-  "text-blue-400",
-  "text-orange-400",
-  "text-purple-400",
-];
+const MEDALLION_CLASS = ["gold", "silver", "bronze", "copper"] as const;
 
 export function ScoreBoard({
   players,
@@ -26,33 +23,54 @@ export function ScoreBoard({
   bagCount,
   status,
 }: ScoreBoardProps) {
+  // Find the leader (highest score, tiebreak by seat)
+  const maxScore = Math.max(...players.map((p) => p.score), 0);
+  const leader = players.find((p) => p.score === maxScore && maxScore > 0);
+
   return (
-    <div className="bg-gray-900 rounded-xl border border-gray-700 p-3">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-gray-500 text-xs">Scores</span>
-        <span className="text-gray-500 text-xs">{bagCount} in bag</span>
+    <div className="td-ledger">
+      <div className="hdr">
+        <svg viewBox="0 0 24 24" fill="#3a2416">
+          <path d="M4 4h16v4H4zM4 10h16v2H4zM4 14h16v2H4zM4 18h11v2H4z" />
+        </svg>
+        <h3>Ledger</h3>
+        <span className="meta">{bagCount} in bag</span>
       </div>
-      <div className="flex gap-4 flex-wrap">
-        {players.map((p) => (
+
+      {players.map((p) => {
+        const isActive = p.seat === currentTurn && status === "active";
+        const isYou = p.seat === yourSeat;
+        const isLeader = leader?.seat === p.seat;
+        const medallionClass = MEDALLION_CLASS[p.seat] ?? "copper";
+
+        return (
           <div
             key={p.seat}
-            className={`flex flex-col items-center ${
-              p.seat === currentTurn && status === "active"
-                ? "ring-1 ring-emerald-500 rounded-lg p-1"
-                : "p-1"
-            }`}
+            className={`player-row ${isActive ? "active" : ""}`}
           >
-            <span className={`text-xs font-medium ${SEAT_COLORS[p.seat]}`}>
-              {p.name}
-              {p.seat === yourSeat ? " (you)" : ""}
+            <span className={`medallion ${medallionClass}`}>
+              {p.name.charAt(0).toUpperCase()}
             </span>
-            <span className="text-white text-lg font-bold">{p.score}</span>
-            {p.seat === currentTurn && status === "active" && (
-              <span className="text-emerald-400 text-[10px]">▶ turn</span>
-            )}
+
+            <div className="p-name">
+              <span className="n flex items-center gap-1">
+                {isLeader && (
+                  <CrownIcon className="inline-block" style={{ color: "#c9a24a", width: 14, height: 14 }} />
+                )}
+                {p.name}
+                {isYou ? " (you)" : ""}
+              </span>
+              <span className="status">
+                {isActive ? "Your turn" : status === "active" ? "Waiting" : "—"}
+              </span>
+            </div>
+
+            <div>
+              <span className="p-score">{p.score}</span>
+            </div>
           </div>
-        ))}
-      </div>
+        );
+      })}
     </div>
   );
 }

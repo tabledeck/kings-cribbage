@@ -29,6 +29,12 @@ export const meta: Route.MetaFunction = () => [
 ];
 
 export const links: Route.LinksFunction = () => [
+  { rel: "preconnect", href: "https://fonts.googleapis.com" },
+  { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+  {
+    rel: "stylesheet",
+    href: "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;700&family=Caveat:wght@500;600&display=swap",
+  },
   { rel: "stylesheet", href: styles },
   { rel: "stylesheet", href: toastStyles },
 ];
@@ -59,7 +65,7 @@ export function ErrorBoundary() {
   }
 
   return (
-    <html lang="en" className="dark bg-gray-950">
+    <html lang="en">
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -67,15 +73,15 @@ export function ErrorBoundary() {
         <Meta />
         <Links />
       </head>
-      <body className="min-h-screen bg-gray-950 text-white flex flex-col items-center justify-center p-4">
+      <body className="min-h-screen flex flex-col items-center justify-center p-4" style={{ background: "#2c0a0d", color: "#f6efe0" }}>
         {statusCode && (
-          <p className="text-emerald-400 text-6xl font-bold mb-2">{statusCode}</p>
+          <p className="text-6xl font-mono font-bold mb-2" style={{ color: "#c9a24a" }}>{statusCode}</p>
         )}
-        <h1 className="text-2xl font-semibold mb-3">{title}</h1>
-        <p className="text-white/60 mb-6 text-center max-w-sm">{message}</p>
+        <h1 className="text-2xl font-serif font-semibold mb-3">{title}</h1>
+        <p className="mb-6 text-center max-w-sm opacity-70 font-sans">{message}</p>
         <a
           href="/"
-          className="bg-emerald-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-emerald-500 transition-colors"
+          className="btn-primary font-sans font-semibold px-6 py-3 rounded-lg"
         >
           Go Home
         </a>
@@ -95,15 +101,15 @@ export default function App({ loaderData }: Route.ComponentProps) {
   }, [toast]);
 
   return (
-    <html lang="en" className="dark bg-gray-950">
+    <html lang="en">
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <Meta />
         <Links />
       </head>
-      <body className="min-h-screen bg-gray-950 text-white">
-        <ToastContainer />
+      <body className="min-h-screen font-sans" style={{ background: "#2c0a0d", color: "#f6efe0" }}>
+        <ToastContainer theme="dark" />
         <Outlet />
         <ScrollRestoration />
         <Scripts />

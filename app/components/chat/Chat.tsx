@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { ChatIcon } from "~/components/icons/ChatIcon";
+import { Seal } from "~/components/tabledeck/Seal";
 
 interface ChatMessage {
   seat: number;
@@ -15,7 +17,12 @@ interface ChatProps {
   onToggle: () => void;
 }
 
-const SEAT_COLORS = ["text-emerald-400", "text-blue-400", "text-orange-400", "text-purple-400"];
+const SEAT_SERIF_COLORS = [
+  "#c9a24a", // gold
+  "#c6c3bc", // silver
+  "#a3441e", // copper/bronze
+  "#8b6a3e", // walnut-gold
+];
 
 export function Chat({ messages, yourSeat, onSend, isOpen, onToggle }: ChatProps) {
   const [input, setInput] = useState("");
@@ -27,53 +34,67 @@ export function Chat({ messages, yourSeat, onSend, isOpen, onToggle }: ChatProps
     }
   };
 
+  const unreadCount = isOpen ? 0 : messages.length;
+
   return (
     <div className="relative">
       <button
         onClick={onToggle}
-        className="bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg px-3 py-2 text-sm transition-colors border border-gray-700"
+        className="td-chat-trigger"
+        aria-label="Toggle chat"
       >
-        💬 Chat {messages.length > 0 && !isOpen && (
-          <span className="ml-1 bg-emerald-600 text-white text-xs rounded-full px-1">
-            {messages.length}
-          </span>
-        )}
+        <ChatIcon />
+        Chat
+        {unreadCount > 0 && <Seal count={unreadCount} />}
       </button>
 
       {isOpen && (
-        <div className="absolute bottom-full mb-2 right-0 w-72 bg-gray-900 rounded-xl border border-gray-700 shadow-xl z-10">
-          <div className="h-36 overflow-y-auto p-3 space-y-1">
-            {messages.length === 0 ? (
-              <p className="text-gray-600 text-xs text-center pt-4">
-                No messages yet
-              </p>
-            ) : (
-              messages.map((m, i) => (
-                <div key={i} className="text-sm">
-                  <span className={`font-medium ${SEAT_COLORS[m.seat]}`}>
-                    {m.playerName}:
-                  </span>{" "}
-                  <span className="text-gray-300">{m.text}</span>
-                </div>
-              ))
-            )}
+        <div className="td-chat-popup">
+          <div className="td-chat-popup-inner">
+            <div
+              className="td-chat-messages"
+              style={{ fontFamily: "var(--sans)", fontSize: 13 }}
+            >
+              {messages.length === 0 ? (
+                <p
+                  className="text-center pt-4"
+                  style={{ fontFamily: "var(--script)", fontSize: 15, color: "var(--ink-faint)" }}
+                >
+                  No messages yet
+                </p>
+              ) : (
+                messages.map((m, i) => (
+                  <div key={i} className="mb-1">
+                    <span
+                      className="font-semibold"
+                      style={{ color: SEAT_SERIF_COLORS[m.seat] ?? SEAT_SERIF_COLORS[0], fontFamily: "var(--serif)" }}
+                    >
+                      {m.playerName}:
+                    </span>{" "}
+                    <span style={{ color: "var(--ink-soft)" }}>{m.text}</span>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
 
           {yourSeat >= 0 && (
-            <div className="flex gap-1 p-2 border-t border-gray-800">
+            <div className="td-chat-input-row">
               <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") handleSend(); }}
-                placeholder="Type a message..."
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSend();
+                }}
+                placeholder="Type a message…"
                 maxLength={200}
-                className="flex-1 bg-gray-800 text-white text-xs rounded-lg px-2 py-1.5 outline-none"
+                className="td-chat-input"
               />
               <button
                 onClick={handleSend}
                 disabled={!input.trim()}
-                className="bg-emerald-700 hover:bg-emerald-600 disabled:opacity-40 text-white text-xs rounded-lg px-2 py-1.5 transition-colors"
+                className="td-chat-send"
               >
                 Send
               </button>

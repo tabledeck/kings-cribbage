@@ -15,6 +15,8 @@ import { ScoreBoard } from "~/components/game/ScoreBoard";
 import { GameControls } from "~/components/game/GameControls";
 import { Chat } from "~/components/chat/Chat";
 import { TileDisplay } from "~/components/board/Tile";
+import { MuteIcon } from "~/components/icons/MuteIcon";
+import { BtnPrimary } from "~/components/tabledeck/BtnPrimary";
 import { useGameWebSocket } from "@tabledeck/game-room/client";
 import { useSounds } from "~/hooks/useSounds";
 import { useScorePopups } from "~/components/game/ScorePopup";
@@ -546,21 +548,21 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
   const sortedPlayers = [...players].sort((a, b) => a.seat - b.seat);
 
   return (
-    <div className="min-h-screen bg-gray-950 flex flex-col items-center p-2 gap-2">
+    <div className="td-surface min-h-screen flex flex-col items-center p-3 gap-3">
       {/* Guest name modal */}
       {showNameModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 rounded-2xl p-6 w-full max-w-sm border border-gray-700">
-            <h2 className="text-white font-bold text-xl mb-1">Join Game</h2>
-            <p className="text-gray-400 text-sm mb-4">
+        <div className="td-modal-overlay">
+          <div className="td-modal">
+            <h2>Join Game</h2>
+            <p>
               Enter a name to play as a guest, or{" "}
-              <a href="/login" className="text-emerald-400 hover:underline">
+              <a href="/login" style={{ color: "var(--gold)", textDecoration: "underline" }}>
                 sign in
               </a>{" "}
               for a profile.
             </p>
             {(joinFetcher.data as any)?.error && (
-              <p className="text-red-400 text-sm mb-3">
+              <p className="td-error mb-3">
                 {(joinFetcher.data as any).error}
               </p>
             )}
@@ -573,18 +575,17 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
               onKeyDown={(e) => e.key === "Enter" && handleJoinAsGuest()}
               maxLength={20}
               disabled={joinFetcher.state !== "idle"}
-              className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500 mb-3 disabled:opacity-50"
             />
-            <button
+            <BtnPrimary
               onClick={handleJoinAsGuest}
               disabled={joinFetcher.state !== "idle" || !guestName.trim()}
-              className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg px-4 py-3"
             >
               {joinFetcher.state !== "idle" ? "Joining…" : "Join"}
-            </button>
+            </BtnPrimary>
             <a
               href="/"
-              className="block w-full text-center text-gray-400 hover:text-white text-sm mt-3 py-2"
+              className="block w-full text-center font-sans text-sm mt-2 py-2"
+              style={{ color: "var(--ink-faint)" }}
             >
               Cancel
             </a>
@@ -594,172 +595,203 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
 
       {/* Game over modal */}
       {status === "finished" && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 rounded-2xl p-6 w-full max-w-sm border border-gray-700 text-center">
-            <h2 className="text-white font-bold text-2xl mb-2">Game Over!</h2>
+        <div className="td-modal-overlay">
+          <div className="td-modal text-center">
+            <h2 className="font-serif" style={{ color: "var(--walnut)" }}>
+              Game Over
+            </h2>
             {winner !== null && (
-              <p className="text-emerald-400 text-lg mb-4">
+              <p
+                className="font-serif mb-4"
+                style={{ fontSize: 18, color: "var(--gold)", fontStyle: "italic" }}
+              >
                 {sortedPlayers.find((p) => p.seat === winner)?.name ?? "Unknown"} wins!
               </p>
             )}
-            <div className="space-y-2 mb-6">
+            <div className="space-y-2 mb-5">
               {sortedPlayers
                 .sort((a, b) => b.score - a.score)
                 .map((p) => (
-                  <div key={p.seat} className="flex justify-between text-white">
-                    <span>{p.name}{p.seat === mySeat ? " (you)" : ""}</span>
-                    <span className="font-bold">{p.score} pts</span>
+                  <div key={p.seat} className="flex justify-between font-sans" style={{ color: "var(--ink-soft)", fontSize: 15 }}>
+                    <span className="font-serif">{p.name}{p.seat === mySeat ? " (you)" : ""}</span>
+                    <span className="font-mono font-bold" style={{ color: "var(--walnut)" }}>{p.score} pts</span>
                   </div>
                 ))}
             </div>
-            <a
-              href="/"
-              className="block bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg px-4 py-3"
-            >
+            <BtnPrimary onClick={() => window.location.href = "/"}>
               New Game
-            </a>
+            </BtnPrimary>
           </div>
         </div>
       )}
 
       {/* Header */}
-      <div className="w-full max-w-2xl flex items-center justify-between">
-        <a href="/" className="text-gray-400 hover:text-white text-sm">
+      <div className="w-full max-w-screen-lg flex items-center justify-between px-2">
+        <a
+          href="/"
+          className="font-serif text-sm"
+          style={{ color: "rgba(246,239,224,0.5)", fontVariant: "small-caps", letterSpacing: "0.12em" }}
+        >
           ← Home
         </a>
-        <h1 className="text-white font-bold">King's Cribbage</h1>
+        <h1
+          className="font-serif"
+          style={{ color: "#f6efe0", fontStyle: "italic", fontSize: 22, fontWeight: 600 }}
+        >
+          King&rsquo;s Cribbage
+        </h1>
         <div className="flex items-center gap-3">
           <button
             onClick={toggleMute}
-            className="text-gray-400 hover:text-white text-lg"
+            className="flex items-center justify-center"
+            style={{ color: "rgba(246,239,224,0.55)", width: 28, height: 28 }}
             title={muted ? "Unmute" : "Mute"}
+            aria-label={muted ? "Unmute" : "Mute"}
           >
-            {muted ? "🔇" : "🔊"}
+            <MuteIcon muted={muted} />
           </button>
           <button
             onClick={handleCopyLink}
-            className="text-emerald-400 hover:text-emerald-300 text-sm"
+            className="font-serif text-sm"
+            style={{ color: "#c9a24a", fontVariant: "small-caps", letterSpacing: "0.14em" }}
           >
-            {copied ? "Copied!" : "Share link"}
+            {copied ? "Copied!" : "Share"}
           </button>
         </div>
       </div>
 
       {/* Waiting state */}
       {status === "waiting" && (
-        <div className="bg-gray-900 rounded-xl border border-gray-700 p-4 w-full max-w-2xl text-center">
-          <p className="text-white font-medium mb-2">
-            Waiting for players ({sortedPlayers.length}/{maxPlayers})
+        <div className="td-status-card w-full max-w-lg">
+          <h3>Waiting for players ({sortedPlayers.length}/{maxPlayers})</h3>
+          <p className="font-sans text-sm mb-3" style={{ color: "var(--ink-faint)" }}>
+            Share this link with your friends:
           </p>
-          <button
-            onClick={handleCopyLink}
-            className="bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg px-4 py-2 text-sm"
-          >
+          <BtnPrimary onClick={handleCopyLink} fullWidth={false} className="mx-auto" style={{ width: "auto", display: "inline-flex" }}>
             {copied ? "Copied!" : "Copy invite link"}
-          </button>
-          <p className="text-gray-500 text-xs mt-2">{shareUrl}</p>
+          </BtnPrimary>
+          <p className="font-mono text-xs mt-2" style={{ color: "var(--ink-faint)", wordBreak: "break-all" }}>
+            {shareUrl}
+          </p>
         </div>
       )}
 
       {/* Guessing phase */}
       {status === "guessing" && (
-        <div className="bg-gray-900 rounded-xl border border-gray-700 p-5 w-full max-w-2xl text-center">
-          <div>
-            <p className="text-white font-bold text-lg mb-1">Guess a number 1–10</p>
-            <p className="text-gray-400 text-sm mb-4">Closest to the secret number goes first!</p>
-            {mySeat >= 0 && myGuess === null ? (
-              <div className="flex flex-wrap justify-center gap-2 mb-4">
-                {[1,2,3,4,5,6,7,8,9,10].map((n) => (
-                  <button
-                    key={n}
-                    onClick={() => handleGuessNumber(n)}
-                    className="w-10 h-10 rounded-lg bg-gray-700 hover:bg-emerald-600 text-white font-bold text-sm transition-colors"
-                  >
-                    {n}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <p className="text-emerald-400 font-medium mb-4">
-                {mySeat >= 0 ? `You guessed ${myGuess}` : "Spectating"}
-              </p>
-            )}
-            <div className="space-y-1">
-              {sortedPlayers.map((p) => (
-                <p key={p.seat} className="text-gray-400 text-sm">
-                  {p.name}: {guesses[p.seat] !== undefined && guesses[p.seat] !== null ? "guessed ✓" : "waiting…"}
-                </p>
+        <div className="td-status-card w-full max-w-lg">
+          <h3>Guess a number 1–10</h3>
+          <p className="font-sans text-sm mb-4" style={{ color: "var(--ink-soft)" }}>
+            Closest to the secret number goes first!
+          </p>
+          {mySeat >= 0 && myGuess === null ? (
+            <div className="flex flex-wrap justify-center gap-2 mb-4">
+              {[1,2,3,4,5,6,7,8,9,10].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => handleGuessNumber(n)}
+                  className="bid-chip font-serif font-bold"
+                  style={{ width: 40, height: 40, padding: 0, flex: "none" }}
+                >
+                  {n}
+                </button>
               ))}
             </div>
+          ) : (
+            <p className="font-serif font-semibold mb-4" style={{ color: "var(--gold)", fontSize: 16 }}>
+              {mySeat >= 0 ? `You guessed ${myGuess}` : "Spectating"}
+            </p>
+          )}
+          <div className="space-y-1">
+            {sortedPlayers.map((p) => (
+              <p key={p.seat} className="font-sans text-sm" style={{ color: "var(--ink-soft)" }}>
+                {p.name}: {guesses[p.seat] !== undefined && guesses[p.seat] !== null
+                  ? <span style={{ color: "var(--forest)" }}>guessed</span>
+                  : "waiting…"}
+              </p>
+            ))}
           </div>
         </div>
       )}
 
-      {/* Score board */}
-      <div className="w-full max-w-2xl">
-        <ScoreBoard
-          players={sortedPlayers}
-          currentTurn={currentTurn}
-          yourSeat={mySeat}
-          bagCount={bagCount}
-          status={status}
-        />
-      </div>
+      {/* Score board + Board layout — three-column CSS grid */}
+      <div className="game-layout">
+        {/* Ledger */}
+        <div className="game-layout-ledger">
+          <ScoreBoard
+            players={sortedPlayers}
+            currentTurn={currentTurn}
+            yourSeat={mySeat}
+            bagCount={bagCount}
+            status={status}
+          />
+        </div>
 
-      {/* Board + Rack share a DndContext so DraggableTile and BoardCell drop targets can communicate */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        modifiers={[restrictToWindowEdges]}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-      >
-        <Board
-          board={board}
-          stagedPlacements={stagedPlacements}
-          playerRack={myRack}
-          isMyTurn={isMyTurn}
-          isTouchDevice={isTouchDevice}
-          selectedTile={myRack.find((t) => t.id === selectedTileId) ?? null}
-          onStageTile={handleStageTile}
-          onUnstage={(tileId) =>
-            setStagedPlacements((prev) => prev.filter((p) => p.tile.id !== tileId))
-          }
-          onFlipTile={handleFlipTile}
-          onClearSelectedTile={() => setSelectedTileId(null)}
-          popups={popups}
-          invalidStagedPositions={invalidStagedPositions}
-        />
+        {/* Board + Rack share a DndContext */}
+        <div className="game-layout-board">
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            modifiers={[restrictToWindowEdges]}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <div className="flex flex-col items-center gap-3">
+              <Board
+                board={board}
+                stagedPlacements={stagedPlacements}
+                playerRack={myRack}
+                isMyTurn={isMyTurn}
+                isTouchDevice={isTouchDevice}
+                selectedTile={myRack.find((t) => t.id === selectedTileId) ?? null}
+                onStageTile={handleStageTile}
+                onUnstage={(tileId) =>
+                  setStagedPlacements((prev) => prev.filter((p) => p.tile.id !== tileId))
+                }
+                onFlipTile={handleFlipTile}
+                onClearSelectedTile={() => setSelectedTileId(null)}
+                popups={popups}
+                invalidStagedPositions={invalidStagedPositions}
+              />
 
-        {/* Rack + Controls */}
+              {/* Rack */}
+              {mySeat >= 0 && (
+                <TileRack
+                  tiles={myRack}
+                  stagedIds={stagedIds}
+                  selectedId={selectedTileId}
+                  isMyTurn={isMyTurn}
+                  onFlipTile={handleFlipTile}
+                  onSelectTile={(id) => setSelectedTileId((prev) => prev === id ? null : id)}
+                />
+              )}
+            </div>
+
+            <DragOverlay>
+              {activeTile && <TileDisplay tile={activeTile} size="md" />}
+            </DragOverlay>
+          </DndContext>
+        </div>
+
+        {/* Controls panel + Chat */}
         {mySeat >= 0 && (
-          <div className="w-full max-w-2xl space-y-2">
-            <TileRack
-              tiles={myRack}
-              stagedIds={stagedIds}
-              selectedId={selectedTileId}
+          <div className="game-layout-controls flex flex-col gap-3">
+            <GameControls
+              stagedPlacements={stagedPlacements}
+              board={board}
               isMyTurn={isMyTurn}
-              onFlipTile={handleFlipTile}
-              onSelectTile={(id) => setSelectedTileId((prev) => prev === id ? null : id)}
+              isFirstMove={board.size === 0}
+              myRack={myRack}
+              onConfirm={handleConfirm}
+              onReset={handleReset}
+              onPass={handlePass}
+              onExchange={(ids) => send({ type: "exchange_tiles", tileIds: ids })}
             />
 
             {gameError && (
-              <p className="text-red-400 text-sm px-1">{gameError}</p>
+              <p className="td-error">{gameError}</p>
             )}
-            <div className="flex items-center gap-2">
-              <div className="flex-1">
-                <GameControls
-                  stagedPlacements={stagedPlacements}
-                  board={board}
-                  isMyTurn={isMyTurn}
-                  isFirstMove={board.size === 0}
-                  myRack={myRack}
-                  onConfirm={handleConfirm}
-                  onReset={handleReset}
-                  onPass={handlePass}
-                  onExchange={(ids) => send({ type: "exchange_tiles", tileIds: ids })}
-                />
-              </div>
+
+            <div className="relative">
               <Chat
                 messages={chatMessages}
                 yourSeat={mySeat}
@@ -770,11 +802,7 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
             </div>
           </div>
         )}
-
-        <DragOverlay>
-          {activeTile && <TileDisplay tile={activeTile} size="md" />}
-        </DragOverlay>
-      </DndContext>
+      </div>
     </div>
   );
 }

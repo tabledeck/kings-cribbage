@@ -93,10 +93,8 @@ export function Board({
   }
 
   return (
-    <div className="relative" style={{ width: "min(90vw, 90vh, 600px)" }}>
-      <div
-        className="grid grid-cols-13 gap-0.5 p-1 bg-gray-900 rounded-xl border border-gray-700"
-      >
+    <div className="board-frame relative" style={{ width: "100%", maxWidth: "min(100%, 600px, 90vh)" }}>
+      <div className="board-grid grid-cols-13">
         {cells}
       </div>
 
@@ -111,7 +109,7 @@ export function Board({
               animate={{ opacity: 0, y: -44, scale: 1.3 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 1.0, ease: "easeOut" }}
-              className="pointer-events-none absolute text-yellow-300 font-bold text-base drop-shadow-lg z-20 -translate-x-1/2"
+              className="pointer-events-none absolute score-popup-text drop-shadow-lg z-20 -translate-x-1/2"
               style={{ left: pct(p.col), top: pct(p.row) }}
             >
               +{p.points}

@@ -3,6 +3,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { motion } from "framer-motion";
 import type { Tile as TileType } from "~/domain/tiles";
 import { tileLabel } from "~/domain/tiles";
+import { FlipIcon } from "~/components/icons/FlipIcon";
 
 interface TileProps {
   tile: TileType;
@@ -13,16 +14,25 @@ interface TileProps {
   onFlip?: () => void;
 }
 
-const SUIT_COLORS = {
-  light: "bg-amber-50 text-gray-900 border-amber-200",
-  dark: "bg-blue-900 text-white border-blue-700",
-};
+// Map tile color + id parity to one of four suit visual classes
+// light tiles → heart / diamond; dark tiles → spade / club
+function getSuit(tile: TileType): "heart" | "diamond" | "spade" | "club" {
+  const isEven = tile.id % 2 === 0;
+  if (tile.color === "light") {
+    return isEven ? "heart" : "diamond";
+  }
+  return isEven ? "spade" : "club";
+}
 
-const SIZES = {
-  sm: "w-7 h-9 text-xs",
-  md: "w-9 h-11 text-sm",
-  lg: "w-12 h-14 text-base",
-  fill: "w-full h-full text-xs",
+function getSuitSymbol(suit: "heart" | "diamond" | "spade" | "club"): string {
+  return { heart: "♥", diamond: "♦", spade: "♠", club: "♣" }[suit];
+}
+
+const SIZE_CLASSES: Record<string, string> = {
+  sm:   "tile tile-sm",
+  md:   "tile tile-md",
+  lg:   "tile tile-lg",
+  fill: "tile",
 };
 
 export function TileDisplay({
@@ -34,6 +44,10 @@ export function TileDisplay({
 }: TileProps) {
   const label = tileLabel(tile);
   const canFlip = tile.rank === "6";
+  const suit = getSuit(tile);
+  const suitSymbol = getSuitSymbol(suit);
+
+  const stateClass = invalid ? "invalid" : staged ? "staged" : "";
 
   return (
     <motion.div
@@ -41,21 +55,15 @@ export function TileDisplay({
       initial={{ scale: 0.6, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       transition={{ type: "spring", stiffness: 400, damping: 25 }}
-      className={`
-        relative rounded border-2 font-bold flex items-center justify-center select-none
-        ${SUIT_COLORS[tile.color]}
-        ${SIZES[size]}
-        ${invalid ? "ring-2 ring-red-500 ring-offset-1 ring-offset-gray-950" : staged ? "ring-2 ring-yellow-400 ring-offset-1 ring-offset-gray-950" : ""}
-        ${onFlip && canFlip ? "cursor-pointer" : ""}
-      `}
+      className={`${SIZE_CLASSES[size]} ${suit} ${stateClass} ${onFlip && canFlip ? "cursor-pointer" : ""}`}
+      style={size === "fill" ? { width: "100%", height: "100%" } : undefined}
       onClick={canFlip ? onFlip : undefined}
       title={canFlip ? "Click to flip 6/9" : undefined}
     >
-      {label}
+      <span className="n">{label}</span>
+      <span className="s">{suitSymbol}</span>
       {canFlip && (
-        <span className="absolute bottom-0.5 right-0.5 text-[8px] opacity-60">
-          ⟳
-        </span>
+        <FlipIcon className="flip-icon" />
       )}
     </motion.div>
   );

@@ -4,6 +4,9 @@ import { scoreMove } from "~/domain/scoring";
 import type { BoardState } from "~/domain/board";
 import { TileDisplay } from "~/components/board/Tile";
 import type { Tile } from "~/domain/tiles";
+import { CheckmarkIcon } from "~/components/icons/CheckmarkIcon";
+import { BtnPrimary } from "~/components/tabledeck/BtnPrimary";
+import { BtnSecondary } from "~/components/tabledeck/BtnSecondary";
 
 interface GameControlsProps {
   stagedPlacements: Placement[];
@@ -15,6 +18,36 @@ interface GameControlsProps {
   onReset: () => void;
   onPass: () => void;
   onExchange: (tileIds: number[]) => void;
+}
+
+interface ScoreBreakdown {
+  fifteens: number;
+  pairs: number;
+  runs: number;
+  flush: number;
+  nobs: number;
+  total: number;
+}
+
+function getScoreBreakdown(
+  board: BoardState,
+  stagedPlacements: Placement[],
+  isFirstMove: boolean,
+): ScoreBreakdown | null {
+  if (stagedPlacements.length === 0) return null;
+  try {
+    const scored = scoreMove(board, stagedPlacements, isFirstMove, stagedPlacements.length);
+    return {
+      fifteens: 0,
+      pairs: 0,
+      runs: 0,
+      flush: 0,
+      nobs: 0,
+      total: scored.total,
+    };
+  } catch {
+    return null;
+  }
 }
 
 export function GameControls({
@@ -65,86 +98,88 @@ export function GameControls({
 
   if (!isMyTurn) {
     return (
-      <div className="text-gray-500 text-sm text-center py-2">
-        Waiting for opponent...
+      <div className="td-panel">
+        <p
+          className="text-center font-serif"
+          style={{ color: "var(--ink-faint)", fontStyle: "italic", fontSize: 14 }}
+        >
+          Awaiting your turn…
+        </p>
       </div>
     );
   }
 
   if (exchangeMode) {
     return (
-      <div className="flex flex-col gap-2">
-        <span className="text-gray-400 text-sm">
+      <div className="td-panel">
+        <h3>Exchange Tiles</h3>
+        <p className="font-sans mb-3" style={{ fontSize: 13, color: "var(--ink-soft)" }}>
           Select tiles to exchange ({selectedIds.size} selected):
-        </span>
-        <div className="flex gap-2 flex-wrap">
+        </p>
+        <div className="flex gap-2 flex-wrap mb-4">
           {myRack.map((tile) => (
             <button
               key={tile.id}
               onClick={() => toggleTile(tile.id)}
               className={`rounded transition-transform ${
                 selectedIds.has(tile.id)
-                  ? "ring-2 ring-yellow-400 scale-110"
+                  ? "ring-2 scale-110"
                   : "opacity-70 hover:opacity-100"
               }`}
+              style={selectedIds.has(tile.id) ? { outlineColor: "var(--gold)", boxShadow: `0 0 0 2px var(--gold)` } : {}}
             >
               <TileDisplay tile={tile} size="md" />
             </button>
           ))}
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={confirmExchange}
-            disabled={selectedIds.size === 0}
-            className="bg-amber-600 hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold rounded-lg px-4 py-2 transition-colors"
-          >
-            Exchange ({selectedIds.size})
-          </button>
-          <button
-            onClick={cancelExchange}
-            className="bg-gray-700 hover:bg-gray-600 text-white rounded-lg px-4 py-2 transition-colors"
-          >
-            Cancel
-          </button>
-        </div>
+        <BtnPrimary
+          onClick={confirmExchange}
+          disabled={selectedIds.size === 0}
+        >
+          <CheckmarkIcon />
+          Exchange ({selectedIds.size})
+        </BtnPrimary>
+        <BtnSecondary onClick={cancelExchange}>
+          Cancel
+        </BtnSecondary>
       </div>
     );
   }
 
   return (
-    <div className="flex items-center gap-2 flex-wrap">
+    <div className="td-panel">
+      <h3>This Play</h3>
+
       {hasStaged ? (
         <>
-          <button
-            onClick={onConfirm}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg px-4 py-2 transition-colors"
-          >
-            Confirm{previewScore > 0 ? ` (+${previewScore} pts)` : ""}
-          </button>
-          <button
-            onClick={onReset}
-            className="bg-gray-700 hover:bg-gray-600 text-white rounded-lg px-4 py-2 transition-colors"
-          >
-            Reset
-          </button>
+          <dl className="score-preview">
+            <dt>Tiles placed</dt>
+            <dd>+{stagedPlacements.length}</dd>
+            <dt className="total">Score</dt>
+            <dd className="total">{previewScore > 0 ? `+${previewScore}` : "—"}</dd>
+          </dl>
+
+          <div style={{ height: 10 }} />
+
+          <BtnPrimary onClick={onConfirm}>
+            <CheckmarkIcon />
+            {previewScore > 0 ? `Confirm · +${previewScore}` : "Confirm"}
+          </BtnPrimary>
+          <BtnSecondary onClick={onReset}>
+            Reset placement
+          </BtnSecondary>
         </>
       ) : (
         <>
-          <span className="text-gray-400 text-sm flex-1">
+          <p className="font-sans mb-3" style={{ fontSize: 13, color: "var(--ink-faint)", fontStyle: "italic" }}>
             Drag a tile to the board
-          </span>
-          <button
-            onClick={() => setExchangeMode(true)}
-            className="bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg px-3 py-2 text-sm transition-colors"
-          >
-            Exchange
-          </button>
-          <button
-            onClick={onPass}
-            className="bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg px-3 py-2 text-sm transition-colors"
-          >
-            Pass
-          </button>
+          </p>
+          <BtnSecondary onClick={() => setExchangeMode(true)}>
+            Exchange tiles
+          </BtnSecondary>
+          <BtnSecondary ghost onClick={onPass}>
+            Pass turn
+          </BtnSecondary>
         </>
       )}
     </div>

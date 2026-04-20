@@ -19,21 +19,19 @@ export function TileRack({
   onSelectTile,
 }: TileRackProps) {
   return (
-    <div className="flex items-center gap-2 p-3 bg-gray-900 rounded-xl border border-gray-700">
-      <span className="text-gray-500 text-xs mr-1 whitespace-nowrap">
-        Your tiles:
-      </span>
-      <div className="flex gap-2">
+    <div className="td-rack">
+      <span className="label">Your tiles</span>
+      <div className="flex gap-2 items-center">
         {tiles.map((tile) => {
           const isStaged = stagedIds.has(tile.id);
           const isSelected = selectedId === tile.id;
 
           if (isStaged) {
-            // Show placeholder for staged tiles
             return (
               <div
                 key={tile.id}
-                className="w-9 h-11 rounded border-2 border-dashed border-gray-600 opacity-30"
+                className="tile-rack tile tile-empty"
+                style={{ width: 44, height: 54 }}
               />
             );
           }
@@ -42,11 +40,11 @@ export function TileRack({
             <div
               key={tile.id}
               onClick={() => isMyTurn && onSelectTile?.(tile.id)}
-              className={isSelected ? "rounded ring-2 ring-yellow-400 ring-offset-1 ring-offset-gray-900" : "rounded"}
+              className={isSelected ? "td-rack tile-selected-ring rounded" : "rounded"}
             >
               <DraggableTile
                 tile={tile}
-                size="md"
+                size="lg"
                 onFlip={
                   tile.rank === "6" ? () => onFlipTile?.(tile.id) : undefined
                 }
@@ -58,7 +56,8 @@ export function TileRack({
         {Array.from({ length: Math.max(0, 5 - tiles.length) }).map((_, i) => (
           <div
             key={`empty-${i}`}
-            className="w-9 h-11 rounded border-2 border-dashed border-gray-700 opacity-20"
+            className="tile tile-empty"
+            style={{ width: 44, height: 54, background: "rgba(0,0,0,0.25)", boxShadow: "inset 0 0 0 1px rgba(201,162,74,0.25)" }}
           />
         ))}
       </div>
