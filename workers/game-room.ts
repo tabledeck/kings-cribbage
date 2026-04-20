@@ -158,27 +158,34 @@ export class GameRoomDO extends BaseGameRoomDO<GameState, GameSettings, Env> {
 
     const msg = result.data;
 
-    switch (msg.type) {
-      case "guess_number":
-        await this.handleGuess(ws, seat, msg.number);
-        break;
-      case "place_tiles":
-        await this.handlePlaceTiles(ws, seat, msg.placements);
-        break;
-      case "pass_turn":
-        await this.handlePass(ws, seat);
-        break;
-      case "exchange_tiles":
-        await this.handleExchange(ws, seat, msg.tileIds);
-        break;
-      case "chat":
-        this.broadcast(JSON.stringify({
-          type: "chat_broadcast",
-          seat,
-          text: msg.text,
-          playerName: this.gameState.players[seat]?.name ?? playerName,
-        }));
-        break;
+    try {
+      switch (msg.type) {
+        case "guess_number":
+          await this.handleGuess(ws, seat, msg.number);
+          break;
+        case "place_tiles":
+          await this.handlePlaceTiles(ws, seat, msg.placements);
+          break;
+        case "pass_turn":
+          await this.handlePass(ws, seat);
+          break;
+        case "exchange_tiles":
+          await this.handleExchange(ws, seat, msg.tileIds);
+          break;
+        case "chat":
+          this.broadcast(JSON.stringify({
+            type: "chat_broadcast",
+            seat,
+            text: msg.text,
+            playerName: this.gameState.players[seat]?.name ?? playerName,
+          }));
+          break;
+      }
+    } catch (err) {
+      console.error("[kings-cribbage] Unexpected error in onGameMessage:", err);
+      try {
+        ws.send(JSON.stringify({ type: "error", message: "Unexpected server error" }));
+      } catch { /* ws already closed */ }
     }
   }
 
@@ -431,8 +438,8 @@ export class GameRoomDO extends BaseGameRoomDO<GameState, GameSettings, Env> {
           move.scoreEarned,
         )
         .run();
-    } catch {
-      // Non-fatal — DO is authoritative
+    } catch (err) {
+      console.error("[kings-cribbage] D1 sync failed (persistMoveToDB):", err);
     }
   }
 
@@ -460,8 +467,8 @@ export class GameRoomDO extends BaseGameRoomDO<GameState, GameSettings, Env> {
             .run();
         }
       }
-    } catch {
-      // Non-fatal
+    } catch (err) {
+      console.error("[kings-cribbage] D1 sync failed (syncStatusToDB):", err);
     }
   }
 }
