@@ -93,7 +93,7 @@ export function Board({
   }
 
   return (
-    <div className="board-frame relative" style={{ width: "100%", maxWidth: "min(100%, 600px, 90vh)" }}>
+    <div className="board-frame relative" style={{ width: "100%", maxWidth: "min(100%, 900px, 92vh)" }}>
       <div className="board-grid grid-cols-13">
         {cells}
       </div>
