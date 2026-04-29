@@ -9,6 +9,8 @@ import {
 import { scoreMove, tilePointValue, type Placement } from "./scoring";
 import { canPlayerMakeAnyMove } from "./validation";
 
+export const WIN_SCORE_THRESHOLD = 100;
+
 export interface PlayerState {
   seat: number;
   rack: Tile[];
@@ -204,6 +206,15 @@ export function applyMove(state: GameState, move: MoveRecord): GameState {
 
       // Refill rack
       refillRack(player, newState.bag);
+
+      // First-to-N win: ends the game the moment a scoring play crosses the threshold.
+      if (player.score >= WIN_SCORE_THRESHOLD) {
+        newState.status = "finished";
+        newState.winner = move.seat;
+        newState.currentTurn = nextTurn(newState);
+        newState.moveCount++;
+        break;
+      }
 
       // Check if player emptied their rack AND bag is empty → game over
       if (player.rack.length === 0 && newState.bag.length === 0) {
