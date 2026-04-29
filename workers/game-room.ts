@@ -2,6 +2,7 @@ import { BaseGameRoomDO } from "@tabledeck/game-room/server";
 import {
   initializeGame,
   applyMove,
+  applyMoveWithAutoPasses,
   serializeGameState,
   deserializeGameState,
   type GameState,
@@ -309,15 +310,24 @@ export class GameRoomDO extends BaseGameRoomDO<GameState, GameSettings, Env> {
       scoreEarned: scored.total,
     };
 
-    this.gameState = applyMove(this.gameState, moveRecord);
+    const { state: nextState, autoPasses } = applyMoveWithAutoPasses(
+      this.gameState,
+      moveRecord,
+      () => this.nextSequence++,
+    );
+    this.gameState = nextState;
     await this.persistState();
     await this.persistMoveToDB(moveRecord);
 
+    // The seat after the placing move advances by 1; auto-passes advance from
+    // there. So nextTurn for the primary broadcast is the seat right after the
+    // placer (auto-passes will broadcast their own intermediate nextTurns).
+    const placerNextSeat = (seat + 1) % this.gameState.players.length;
     this.broadcast(JSON.stringify({
       type: "move_made",
       move: moveRecord,
       scores: this.gameState.players.map((p) => p.score),
-      nextTurn: this.gameState.currentTurn,
+      nextTurn: placerNextSeat,
       bagCount: this.gameState.bag.length,
     }));
 
@@ -325,14 +335,8 @@ export class GameRoomDO extends BaseGameRoomDO<GameState, GameSettings, Env> {
     const newRack = this.gameState.players[seat]?.rack ?? [];
     ws.send(JSON.stringify({ type: "tiles_drawn", tiles: newRack }));
 
-    if (this.gameState.status === "finished") {
-      await this.syncStatusToDB();
-      this.broadcast(JSON.stringify({
-        type: "game_over",
-        finalScores: this.gameState.players.map((p) => p.score),
-        winner: this.gameState.winner,
-      }));
-    }
+    await this.broadcastAutoPasses(autoPasses);
+    await this.maybeBroadcastGameOver();
   }
 
   private async handlePass(ws: WebSocket, seat: number) {
@@ -351,26 +355,26 @@ export class GameRoomDO extends BaseGameRoomDO<GameState, GameSettings, Env> {
       scoreEarned: 0,
     };
 
-    this.gameState = applyMove(this.gameState, moveRecord);
+    const { state: nextState, autoPasses } = applyMoveWithAutoPasses(
+      this.gameState,
+      moveRecord,
+      () => this.nextSequence++,
+    );
+    this.gameState = nextState;
     await this.persistState();
     await this.persistMoveToDB(moveRecord);
 
+    const passerNextSeat = (seat + 1) % this.gameState.players.length;
     this.broadcast(JSON.stringify({
       type: "move_made",
       move: moveRecord,
       scores: this.gameState.players.map((p) => p.score),
-      nextTurn: this.gameState.currentTurn,
+      nextTurn: passerNextSeat,
       bagCount: this.gameState.bag.length,
     }));
 
-    if (this.gameState.status === "finished") {
-      await this.syncStatusToDB();
-      this.broadcast(JSON.stringify({
-        type: "game_over",
-        finalScores: this.gameState.players.map((p) => p.score),
-        winner: this.gameState.winner,
-      }));
-    }
+    await this.broadcastAutoPasses(autoPasses);
+    await this.maybeBroadcastGameOver();
   }
 
   private async handleExchange(ws: WebSocket, seat: number, tileIds: number[]) {
@@ -400,20 +404,57 @@ export class GameRoomDO extends BaseGameRoomDO<GameState, GameSettings, Env> {
       scoreEarned: 0,
     };
 
-    this.gameState = applyMove(this.gameState, moveRecord);
+    const { state: nextState, autoPasses } = applyMoveWithAutoPasses(
+      this.gameState,
+      moveRecord,
+      () => this.nextSequence++,
+    );
+    this.gameState = nextState;
     await this.persistState();
     await this.persistMoveToDB(moveRecord);
 
+    // Exchange always leaves bag.length > 0 (it requires bag.length >= tileIds.length
+    // and returns the same number of tiles), so auto-passes can't fire here. But
+    // we still send the broadcast through the same path for consistency.
+    const exchangerNextSeat = (seat + 1) % this.gameState.players.length;
     this.broadcast(JSON.stringify({
       type: "move_made",
       move: moveRecord,
       scores: this.gameState.players.map((p) => p.score),
-      nextTurn: this.gameState.currentTurn,
+      nextTurn: exchangerNextSeat,
       bagCount: this.gameState.bag.length,
     }));
 
     const newRack = this.gameState.players[seat]?.rack ?? [];
     ws.send(JSON.stringify({ type: "tiles_drawn", tiles: newRack }));
+
+    await this.broadcastAutoPasses(autoPasses);
+    await this.maybeBroadcastGameOver();
+  }
+
+  private async broadcastAutoPasses(autoPasses: MoveRecord[]) {
+    if (!this.gameState || autoPasses.length === 0) return;
+    const playerCount = this.gameState.players.length;
+    for (const ap of autoPasses) {
+      await this.persistMoveToDB(ap);
+      this.broadcast(JSON.stringify({
+        type: "move_made",
+        move: ap,
+        scores: this.gameState.players.map((p) => p.score),
+        nextTurn: (ap.seat + 1) % playerCount,
+        bagCount: this.gameState.bag.length,
+      }));
+    }
+  }
+
+  private async maybeBroadcastGameOver() {
+    if (!this.gameState || this.gameState.status !== "finished") return;
+    await this.syncStatusToDB();
+    this.broadcast(JSON.stringify({
+      type: "game_over",
+      finalScores: this.gameState.players.map((p) => p.score),
+      winner: this.gameState.winner,
+    }));
   }
 
   // ── Persistence ──────────────────────────────────────────────────────────

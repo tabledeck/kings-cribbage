@@ -285,6 +285,8 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
   >([]);
   const [chatOpen, setChatOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [creatingRematch, setCreatingRematch] = useState(false);
+  const [rematchError, setRematchError] = useState("");
 
   // Mobile: selected tile for tap-to-place
   const [selectedTileId, setSelectedTileId] = useState<number | null>(null);
@@ -541,6 +543,32 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleRematch = async () => {
+    if (creatingRematch) return;
+    setCreatingRematch(true);
+    setRematchError("");
+
+    try {
+      const response = await fetch("/api/game", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rematchOf: gameId }),
+      });
+      const body = (await response.json()) as { gameId?: string; error?: string };
+
+      if (!response.ok || !body.gameId) {
+        setRematchError(body.error ?? "Failed to create rematch.");
+        setCreatingRematch(false);
+        return;
+      }
+
+      window.location.href = `/game/${body.gameId}`;
+    } catch {
+      setRematchError("Network error. Please try again.");
+      setCreatingRematch(false);
+    }
+  };
+
   const isMyTurn = currentTurn === mySeat && status === "active";
   const stagedIds = new Set(stagedPlacements.map((p) => p.tile.id));
 
@@ -618,9 +646,21 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
                   </div>
                 ))}
             </div>
-            <BtnPrimary onClick={() => window.location.href = "/"}>
-              New Game
+            {rematchError && (
+              <p className="td-error mb-3">
+                {rematchError}
+              </p>
+            )}
+            <BtnPrimary onClick={handleRematch} disabled={creatingRematch}>
+              {creatingRematch ? "Starting rematch..." : "Rematch same rules"}
             </BtnPrimary>
+            <button
+              type="button"
+              className="btn-ghost mt-3"
+              onClick={() => window.location.href = "/"}
+            >
+              New Game
+            </button>
           </div>
         </div>
       )}

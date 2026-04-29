@@ -5,9 +5,13 @@ import { nanoid } from "nanoid";
 import { getOptionalUserFromContext } from "~/domain/utils/global-context.server";
 import { z } from "zod";
 
-const CreateGameSchema = z.object({
+const CopiedSettingsSchema = z.object({
   maxPlayers: z.number().int().min(2).max(4).default(2),
   timePerTurn: z.number().int().min(0).default(0),
+});
+
+const CreateGameSchema = CopiedSettingsSchema.extend({
+  rematchOf: z.string().min(1).optional(),
 });
 
 export async function action({ request, context }: Route.ActionArgs) {
@@ -21,11 +25,38 @@ export async function action({ request, context }: Route.ActionArgs) {
     throw data({ error: "Invalid request" }, { status: 400 });
   }
 
-  const { maxPlayers, timePerTurn } = parsed.data;
+  const db = getPrisma(context);
+  const { rematchOf } = parsed.data;
+  let { maxPlayers, timePerTurn } = parsed.data;
+
+  if (rematchOf) {
+    const originalGame = await db.game.findUnique({
+      where: { id: rematchOf },
+      select: { settings: true },
+    });
+
+    if (!originalGame) {
+      throw data({ error: "Original game not found" }, { status: 404 });
+    }
+
+    let originalSettingsJson: unknown;
+    try {
+      originalSettingsJson = JSON.parse(originalGame.settings);
+    } catch {
+      throw data({ error: "Original game settings are invalid" }, { status: 400 });
+    }
+
+    const originalSettings = CopiedSettingsSchema.safeParse(originalSettingsJson);
+    if (!originalSettings.success) {
+      throw data({ error: "Original game settings are invalid" }, { status: 400 });
+    }
+
+    ({ maxPlayers, timePerTurn } = originalSettings.data);
+  }
+
   const gameId = nanoid(6); // short, URL-friendly ID
   const seed = Math.floor(Math.random() * 2 ** 32);
 
-  const db = getPrisma(context);
   await db.game.create({
     data: {
       id: gameId,

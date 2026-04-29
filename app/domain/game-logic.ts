@@ -7,6 +7,7 @@ import {
   type CellState,
 } from "./board";
 import { scoreMove, tilePointValue, type Placement } from "./scoring";
+import { canPlayerMakeAnyMove } from "./validation";
 
 export interface PlayerState {
   seat: number;
@@ -256,7 +257,8 @@ export function applyMove(state: GameState, move: MoveRecord): GameState {
       // Return tiles to end of bag
       newState.bag.push(...returned);
 
-      newState.consecutivePasses++;
+      // Exchange is a productive action — it interrupts a run of passes.
+      newState.consecutivePasses = 0;
       newState.currentTurn = nextTurn(newState);
       newState.moveCount++;
       break;
@@ -264,6 +266,46 @@ export function applyMove(state: GameState, move: MoveRecord): GameState {
   }
 
   return newState;
+}
+
+// Apply a move and then auto-pass any subsequent players who have no legal
+// move. Only meaningful once the bag is empty — while tiles remain, a stuck
+// player can always exchange instead of pass.
+//
+// Returns the new state plus the synthetic pass MoveRecords generated for the
+// auto-passes, so the caller can persist and broadcast them like normal moves.
+// Replay (`replayMoves`) does not need to call this function: the synthetic
+// passes are persisted as real records and replay through `applyMove`.
+export function applyMoveWithAutoPasses(
+  state: GameState,
+  move: MoveRecord,
+  nextSequence: () => number,
+): { state: GameState; autoPasses: MoveRecord[] } {
+  let current = applyMove(state, move);
+  const autoPasses: MoveRecord[] = [];
+
+  while (
+    current.status === "active" &&
+    current.bag.length === 0 &&
+    current.players[current.currentTurn] &&
+    !canPlayerMakeAnyMove(
+      current.board,
+      current.players[current.currentTurn].rack,
+      !current.firstMoveMade,
+    )
+  ) {
+    const passMove: MoveRecord = {
+      seat: current.currentTurn,
+      sequence: nextSequence(),
+      moveType: "pass",
+      data: { type: "pass" },
+      scoreEarned: 0,
+    };
+    current = applyMove(current, passMove);
+    autoPasses.push(passMove);
+  }
+
+  return { state: current, autoPasses };
 }
 
 function nextTurn(state: GameState): number {

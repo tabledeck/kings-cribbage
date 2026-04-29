@@ -9,6 +9,43 @@ import {
 import { type Tile } from "./tiles";
 import { moveSatisfiesScoring, type Placement } from "./scoring";
 
+// Stalemate detection: does this player have any legal single-tile placement?
+// Used by the auto-pass logic in applyMove when the bag is empty. Single-tile
+// coverage is sufficient — if a player has no legal single-tile move, any
+// multi-tile move would have to score on its own, which is vanishingly rare.
+// Not meaningful for the first move (which requires ≥ 2 tiles), but the bag
+// can't be empty on the first move anyway.
+export function canPlayerMakeAnyMove(
+  board: BoardState,
+  rack: Tile[],
+  isFirstMove: boolean,
+): boolean {
+  if (rack.length === 0) return false;
+
+  for (let row = 0; row < 13; row++) {
+    for (let col = 0; col < 13; col++) {
+      if (!isValidCell(row, col)) continue;
+      if (board.has(posKey(row, col))) continue;
+
+      for (const tile of rack) {
+        const variants: Tile[] =
+          tile.rank === "6"
+            ? [{ ...tile, flipped: false }, { ...tile, flipped: true }]
+            : [tile];
+
+        for (const variant of variants) {
+          const placement: Placement = { row, col, tile: variant };
+          if (validateMove(board, [placement], rack, isFirstMove).valid) {
+            return true;
+          }
+        }
+      }
+    }
+  }
+
+  return false;
+}
+
 export type ValidationResult =
   | { valid: true }
   | { valid: false; reason: string };
