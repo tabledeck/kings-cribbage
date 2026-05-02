@@ -576,7 +576,7 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
   const sortedPlayers = [...players].sort((a, b) => a.seat - b.seat);
 
   return (
-    <div className="td-surface min-h-screen flex flex-col items-center p-3 gap-3">
+    <div className="td-surface game-room-surface">
       {/* Guest name modal */}
       {showNameModal && (
         <div className="td-modal-overlay">
@@ -666,7 +666,7 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
       )}
 
       {/* Header */}
-      <div className="w-full max-w-screen-lg flex items-center justify-between px-2">
+      <div className="game-header w-full max-w-screen-lg flex items-center justify-between px-2">
         <a
           href="/"
           className="font-serif text-sm"

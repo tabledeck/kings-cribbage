@@ -67,6 +67,15 @@
       );
   }
 
+  .game-room-surface {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+  }
+
   /* ========== WALNUT BOX FRAME ========== */
   .td-box {
     max-width: 1280px;
@@ -326,6 +335,8 @@
   .board-frame {
     position: relative;
     width: 100%;
+    max-width: 100%;
+    align-self: stretch;
     padding: 14px;
     border-radius: 10px;
     background:
@@ -1044,6 +1055,7 @@
   .game-layout-board    {
     grid-area: board;
     min-width: 0;
+    width: 100%;
     display: flex;
     justify-content: center;
   }
@@ -1051,6 +1063,7 @@
 
   .game-play-stack {
     width: min(100%, 860px, calc(100dvh - 170px));
+    min-width: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1091,6 +1104,27 @@
    * narrow screens so the board fills the viewport edge-to-edge.
    */
   @media (max-width: 639px) {
+    .game-room-surface {
+      align-items: stretch;
+      gap: 8px;
+      padding: 8px 6px 14px;
+    }
+    .game-header {
+      padding-inline: 2px !important;
+    }
+    .game-header h1 {
+      font-size: 20px !important;
+      line-height: 1.05;
+    }
+    .game-header a,
+    .game-header button {
+      font-size: 12px !important;
+      letter-spacing: 0.11em !important;
+    }
+    .game-header button[aria-label] {
+      width: 24px !important;
+      height: 24px !important;
+    }
     .td-box {
       padding: 10px;
       border-radius: 10px;
@@ -1118,30 +1152,56 @@
    */
   @media (max-width: 639px) {
     .board-frame {
-      padding: 8px;
+      width: 100%;
+      padding: 7px;
+      border-radius: 9px;
     }
     .game-play-stack {
-      width: 100%;
-      gap: 10px;
+      width: calc(100vw - 12px);
+      max-width: 100%;
+      align-self: center;
+      gap: 8px;
     }
     .board-grid {
       gap: 1px;
-      padding: 6px;
+      padding: 5px;
     }
     .game-layout {
-      gap: 14px;
+      gap: 8px;
+      justify-items: stretch;
     }
     .td-rack {
-      flex-wrap: wrap;
-      gap: 5px;
-      padding: 10px 12px;
+      flex-wrap: nowrap;
+      gap: 6px;
+      padding: 8px 8px;
+      border-radius: 5px;
     }
     .game-play-stack .td-rack {
       width: 100%;
     }
+    .td-rack .label {
+      font-size: 10px;
+      letter-spacing: 0.13em;
+      margin-right: 0;
+    }
     .tile-rack-list {
-      flex-wrap: wrap;
-      gap: 6px;
+      flex: 1;
+      min-width: 0;
+      flex-wrap: nowrap;
+      gap: 5px;
+      justify-content: space-between;
+    }
+    .td-rack .tile-lg,
+    .td-rack .tile-rack,
+    .td-rack .tile-empty {
+      width: clamp(38px, 11.4vw, 46px) !important;
+      height: clamp(46px, 13.5vw, 54px) !important;
+    }
+    .td-rack .tile .n {
+      font-size: clamp(15px, 4.5vw, 19px);
+    }
+    .td-rack .tile .s {
+      font-size: clamp(8px, 2.4vw, 10px);
     }
   }
 
@@ -1162,53 +1222,60 @@
    */
   @media (max-width: 639px) {
     .td-ledger {
-      padding: 8px 10px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 2px 8px;
+      padding: 6px 8px;
       border-radius: 5px;
     }
-    /* Pull the header into a single compact bar, hide the "Ledger" word */
+    /* Pull the header into a single compact bar. */
     .td-ledger .hdr {
-      padding-bottom: 6px;
-      margin-bottom: 6px;
+      grid-column: 1 / -1;
+      padding-bottom: 4px;
+      margin-bottom: 0;
       gap: 6px;
     }
-    .td-ledger .hdr svg { width: 13px; height: 13px; }
+    .td-ledger .hdr svg { width: 12px; height: 12px; }
     .td-ledger .hdr h3 {
-      font-size: 11.5px;
-      letter-spacing: 0.14em;
+      font-size: 10px;
+      letter-spacing: 0.12em;
     }
     .td-ledger .meta {
-      font-size: 10.5px;
-    }
-    /* Stack players side-by-side as chips */
-    .td-ledger {
-      display: flex;
-      flex-direction: column;
+      font-size: 10px;
     }
     .td-ledger > .hdr {
       flex: 0 0 auto;
     }
     .td-ledger > .player-row {
       display: grid;
-      grid-template-columns: 22px 1fr auto;
+      grid-template-columns: 18px minmax(0, 1fr) auto;
       gap: 6px;
       padding: 4px 0;
-      border-bottom: 1px dashed rgba(26,22,18,0.18);
+      border-bottom: 0;
       align-items: center;
+      min-width: 0;
     }
     .td-ledger .player-row.active {
-      margin: 0 -10px;
-      padding-left: 10px;
-      padding-right: 10px;
-      box-shadow: inset 3px 0 0 var(--gold);
+      margin: 0;
+      padding-left: 4px;
+      padding-right: 4px;
+      border-radius: 4px;
+      box-shadow: inset 2px 0 0 var(--gold);
     }
     .medallion {
-      width: 22px;
-      height: 22px;
-      font-size: 12px;
+      width: 18px;
+      height: 18px;
+      font-size: 10px;
     }
-    .p-name .n { font-size: 13.5px; }
-    .p-name .status { font-size: 10.5px; }
-    .p-score { font-size: 18px; }
+    .p-name { min-width: 0; }
+    .p-name .n {
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .p-name .status { font-size: 9px; }
+    .p-score { font-size: 15px; }
     .p-delta { font-size: 10.5px; margin-top: 1px; }
   }
 
@@ -1217,6 +1284,35 @@
    * already-cramped controls column.
    */
   @media (max-width: 639px) {
+    .game-layout-controls {
+      width: min(100%, 520px);
+      justify-self: center;
+    }
+    .td-panel {
+      padding: 8px 10px;
+      border-radius: 5px;
+    }
+    .td-panel h3 {
+      font-size: 13px;
+      margin-bottom: 6px;
+      padding-bottom: 5px;
+    }
+    .td-panel p {
+      margin: 0;
+      font-size: 12px !important;
+      line-height: 1.25;
+    }
+    .btn-primary,
+    .btn-secondary,
+    .btn-ghost {
+      padding: 8px 10px;
+      font-size: 12px;
+      margin-bottom: 5px;
+    }
+    .score-preview {
+      padding: 6px 4px;
+      font-size: 12px;
+    }
     .td-chat-trigger {
       padding: 6px 10px;
       font-size: 12px;
