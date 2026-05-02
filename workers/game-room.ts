@@ -82,11 +82,38 @@ export class GameRoomDO extends BaseGameRoomDO<GameState, GameSettings, Env> {
     }
   }
 
+  private async ensureGuessTarget(): Promise<number | null> {
+    if (!this.gameState || !this.settings || this.gameState.status !== "guessing") {
+      return this.gameState?.guessTarget ?? null;
+    }
+
+    const guesses = Array.isArray(this.gameState.guesses)
+      ? this.gameState.guesses
+      : new Array(this.settings.maxPlayers).fill(null);
+    const guessTarget = typeof this.gameState.guessTarget === "number"
+      ? this.gameState.guessTarget
+      : Math.floor(Math.random() * 10) + 1;
+
+    if (guesses === this.gameState.guesses && guessTarget === this.gameState.guessTarget) {
+      return guessTarget;
+    }
+
+    this.gameState = {
+      ...this.gameState,
+      guesses,
+      guessTarget,
+    };
+    await this.persistState();
+    return guessTarget;
+  }
+
   private async startGameAfterGuess(): Promise<void> {
-    if (!this.gameState || !this.settings || this.gameState.guessTarget === null) return;
+    if (!this.gameState || !this.settings) return;
+
+    const target = await this.ensureGuessTarget();
+    if (target === null) return;
 
     const guesses = this.gameState.guesses;
-    const target = this.gameState.guessTarget;
 
     // Determine closest guesser (ties: lower seat wins)
     let firstSeat = 0;
@@ -214,6 +241,8 @@ export class GameRoomDO extends BaseGameRoomDO<GameState, GameSettings, Env> {
       ws.send(JSON.stringify({ type: "error", message: "Not in guessing phase" }));
       return;
     }
+
+    await this.ensureGuessTarget();
 
     if (this.gameState.guesses[seat] !== null) {
       ws.send(JSON.stringify({ type: "error", message: "Already guessed" }));

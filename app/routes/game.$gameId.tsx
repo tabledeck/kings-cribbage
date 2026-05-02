@@ -256,6 +256,11 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
   const [winner, setWinner] = useState<number | null>(null);
   const [guesses, setGuesses] = useState<(number | null)[]>([]);
   const [myGuess, setMyGuess] = useState<number | null>(null);
+  const [guessReveal, setGuessReveal] = useState<{
+    guesses: (number | null)[];
+    guessTarget: number;
+    firstSeat: number;
+  } | null>(null);
 
   const { play, muted, toggleMute } = useSounds();
   const { popups, addPopup } = useScorePopups();
@@ -309,8 +314,23 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
             })));
             if (s?.currentTurn !== undefined) setCurrentTurn(s.currentTurn);
             if (s?.status) setStatus(s.status);
-            if (s?.guesses) setGuesses(s.guesses);
+            if (s?.status === "guessing") setGuessReveal(null);
+            if (s?.guesses) {
+              setGuesses(s.guesses);
+              if (mySeat >= 0 && s.guesses[mySeat] !== undefined && s.guesses[mySeat] !== null) {
+                setMyGuess(s.guesses[mySeat]);
+              }
+            }
             if (msg.yourRack) setMyRack(msg.yourRack as Tile[]);
+            break;
+          }
+          case "guess_reveal": {
+            const gr = msg as any;
+            setGuessReveal({
+              guesses: gr.guesses,
+              guessTarget: gr.guessTarget,
+              firstSeat: gr.firstSeat,
+            });
             break;
           }
           case "move_made": {
@@ -390,9 +410,15 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
           }
         }
       },
-      [],
+      [addPopup, mySeat, play],
     ),
   });
+
+  useEffect(() => {
+    if (!guessReveal) return;
+    const timeoutId = window.setTimeout(() => setGuessReveal(null), 2400);
+    return () => window.clearTimeout(timeoutId);
+  }, [guessReveal]);
 
   // Compute invalid staged positions whenever the scoring error is active
   useEffect(() => {
@@ -497,11 +523,15 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
     );
   }, []);
 
+  const effectiveMyGuess = mySeat >= 0 && guesses[mySeat] !== undefined && guesses[mySeat] !== null
+    ? guesses[mySeat]
+    : myGuess;
+
   const handleGuessNumber = useCallback((n: number) => {
-    if (myGuess !== null || status !== "guessing") return;
+    if (effectiveMyGuess !== null || status !== "guessing") return;
     setMyGuess(n);
     send({ type: "guess_number", number: n });
-  }, [myGuess, status, send]);
+  }, [effectiveMyGuess, status, send]);
 
   const handleConfirm = useCallback(() => {
     if (stagedPlacements.length === 0) return;
@@ -717,13 +747,39 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
       )}
 
       {/* Guessing phase */}
-      {status === "guessing" && (
+      {guessReveal ? (
+        <div className="td-status-card w-full max-w-lg">
+          <h3>
+            The number was <span style={{ color: "var(--gold)" }}>{guessReveal.guessTarget}</span>
+          </h3>
+          <p className="font-sans text-sm mb-4" style={{ color: "var(--ink-soft)" }}>
+            {sortedPlayers.find((p) => p.seat === guessReveal.firstSeat)?.name ?? "The closest player"} goes first.
+          </p>
+          <div className="space-y-1">
+            {sortedPlayers.map((p) => {
+              const guess = guessReveal.guesses[p.seat];
+              const diff = guess === null || guess === undefined
+                ? null
+                : Math.abs(guess - guessReveal.guessTarget);
+              return (
+                <p key={p.seat} className="font-sans text-sm" style={{ color: "var(--ink-soft)" }}>
+                  {p.name}: {guess ?? "?"}
+                  {diff !== null ? ` (off by ${diff})` : ""}
+                  {p.seat === guessReveal.firstSeat ? (
+                    <span style={{ color: "var(--forest)", fontWeight: 700 }}> - first</span>
+                  ) : null}
+                </p>
+              );
+            })}
+          </div>
+        </div>
+      ) : status === "guessing" && (
         <div className="td-status-card w-full max-w-lg">
           <h3>Guess a number 1–10</h3>
           <p className="font-sans text-sm mb-4" style={{ color: "var(--ink-soft)" }}>
             Closest to the secret number goes first!
           </p>
-          {mySeat >= 0 && myGuess === null ? (
+          {mySeat >= 0 && effectiveMyGuess === null ? (
             <div className="flex flex-wrap justify-center gap-2 mb-4">
               {[1,2,3,4,5,6,7,8,9,10].map((n) => (
                 <button
@@ -738,7 +794,7 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
             </div>
           ) : (
             <p className="font-serif font-semibold mb-4" style={{ color: "var(--gold)", fontSize: 16 }}>
-              {mySeat >= 0 ? `You guessed ${myGuess}` : "Spectating"}
+              {mySeat >= 0 ? `You guessed ${effectiveMyGuess}` : "Spectating"}
             </p>
           )}
           <div className="space-y-1">
@@ -754,9 +810,9 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
       )}
 
       {/* Score board + Board layout */}
-      <div className="grid w-full max-w-[1600px] grid-cols-1 items-start gap-2 lg:grid-cols-[minmax(220px,280px)_minmax(0,1fr)_minmax(220px,280px)] lg:gap-[clamp(14px,1.6vw,28px)]">
+      <div className="game-layout-board-first grid w-full max-w-[1600px] grid-cols-1 items-start gap-2 2xl:grid-cols-[minmax(220px,280px)_minmax(0,1fr)_minmax(220px,280px)] 2xl:gap-[clamp(14px,1.6vw,28px)]">
         {/* Ledger */}
-        <div className="w-full min-w-0 md:max-w-[680px] md:justify-self-center lg:max-w-none">
+        <div className="game-layout-ledger w-full min-w-0 md:max-w-[680px] md:justify-self-center 2xl:max-w-none">
           <ScoreBoard
             players={sortedPlayers}
             currentTurn={currentTurn}
@@ -767,7 +823,7 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
         </div>
 
         {/* Board + Rack share a DndContext */}
-        <div className="flex w-full min-w-0 justify-center">
+        <div className="game-layout-play flex w-full min-w-0 justify-center">
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
@@ -814,7 +870,7 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
 
         {/* Controls panel + Chat */}
         {mySeat >= 0 && (
-          <div className="flex w-full max-w-[520px] flex-col gap-2 justify-self-center lg:max-w-none lg:gap-3">
+          <div className="game-layout-controls flex w-full max-w-[520px] flex-col gap-2 justify-self-center 2xl:max-w-none 2xl:gap-3">
             <GameControls
               stagedPlacements={stagedPlacements}
               board={board}

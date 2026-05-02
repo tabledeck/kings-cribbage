@@ -1004,6 +1004,18 @@
   }
 
   /* ========== GAME LAYOUT RESPONSIVENESS ========== */
+  .game-room .game-layout-play {
+    order: 1;
+  }
+
+  .game-room .game-layout-ledger {
+    order: 2;
+  }
+
+  .game-room .game-layout-controls {
+    order: 3;
+  }
+
   .game-room .game-play-stack {
     width: min(100%, calc(100vw - 12px));
   }
@@ -1338,7 +1350,25 @@
 
   @media (min-width: 768px) {
     .game-room .game-play-stack {
-      width: min(100%, 860px, calc(100dvh - 170px));
+      width: min(100%, 1040px);
+    }
+  }
+
+  @media (min-width: 1536px) {
+    .game-room .game-layout-ledger {
+      order: 1;
+    }
+
+    .game-room .game-layout-play {
+      order: 2;
+    }
+
+    .game-room .game-layout-controls {
+      order: 3;
+    }
+
+    .game-room .game-play-stack {
+      width: min(100%, 1040px);
     }
   }
 
