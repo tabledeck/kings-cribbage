@@ -401,25 +401,6 @@
     opacity: 0.55;
     pointer-events: none;
   }
-  .board-cell.double::after {
-    content: "×2";
-    font-family: var(--serif);
-    font-variant: small-caps;
-    font-weight: 600;
-    color: rgba(201,162,74,0.55);
-    font-size: clamp(8px, 1.1vmin, 13px);
-    letter-spacing: 0.1em;
-    pointer-events: none;
-  }
-  .board-cell.triple::after {
-    content: "×3";
-    font-family: var(--serif);
-    font-variant: small-caps;
-    font-weight: 600;
-    color: rgba(232,200,114,0.7);
-    font-size: clamp(8px, 1.1vmin, 13px);
-    pointer-events: none;
-  }
   .board-cell.drag-over {
     box-shadow:
       inset 0 0 0 2px var(--gold),
