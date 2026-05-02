@@ -325,6 +325,7 @@
   /* ========== BOARD FRAME ========== */
   .board-frame {
     position: relative;
+    width: 100%;
     padding: 14px;
     border-radius: 10px;
     background:
@@ -351,8 +352,10 @@
   .board-grid {
     display: grid;
     grid-template-columns: repeat(13, 1fr);
+    grid-template-rows: repeat(13, 1fr);
     gap: 2px;
     padding: 8px;
+    aspect-ratio: 1 / 1;
     background: radial-gradient(circle at 50% 50%, #4d1219 0%, #2c0a0d 100%);
     border-radius: 4px;
     box-shadow:
@@ -383,7 +386,7 @@
     content: "♛";
     font-family: var(--serif);
     color: var(--gold-hi);
-    font-size: 16px;
+    font-size: clamp(14px, 2.2vmin, 24px);
     opacity: 0.55;
     pointer-events: none;
   }
@@ -393,7 +396,7 @@
     font-variant: small-caps;
     font-weight: 600;
     color: rgba(201,162,74,0.55);
-    font-size: 9px;
+    font-size: clamp(8px, 1.1vmin, 13px);
     letter-spacing: 0.1em;
     pointer-events: none;
   }
@@ -403,7 +406,7 @@
     font-variant: small-caps;
     font-weight: 600;
     color: rgba(232,200,114,0.7);
-    font-size: 9px;
+    font-size: clamp(8px, 1.1vmin, 13px);
     pointer-events: none;
   }
   .board-cell.drag-over {
@@ -524,6 +527,10 @@
     border: 1px solid var(--gold-lo);
     align-items: center;
   }
+  .game-play-stack .td-rack {
+    width: min(100%, 640px);
+    justify-content: center;
+  }
   .td-rack .label {
     font-family: var(--serif);
     font-variant: small-caps;
@@ -533,6 +540,12 @@
     color: var(--gold-hi);
     white-space: nowrap;
     margin-right: 4px;
+  }
+  .tile-rack-list {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
   }
   .td-rack .tile-empty {
     background: rgba(0,0,0,0.25);
@@ -1019,25 +1032,44 @@
   .game-layout {
     display: grid;
     width: 100%;
-    max-width: 1440px;
-    gap: 18px;
+    max-width: 1600px;
+    gap: clamp(14px, 1.6vw, 28px);
     align-items: start;
-    /* Desktop default — tighter side columns so the 13×13 board dominates. */
-    grid-template-columns: 220px minmax(0, 1fr) 220px;
+    /* Desktop default — side columns stay useful while the 13x13 board dominates. */
+    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr) minmax(220px, 280px);
     grid-template-areas: "ledger board controls";
   }
 
   .game-layout-ledger   { grid-area: ledger; }
-  .game-layout-board    { grid-area: board; min-width: 0; }
+  .game-layout-board    {
+    grid-area: board;
+    min-width: 0;
+    display: flex;
+    justify-content: center;
+  }
   .game-layout-controls { grid-area: controls; }
 
-  /* Tablet: stack ledger on top, board + controls below */
-  @media (max-width: 1023px) and (min-width: 640px) {
+  .game-play-stack {
+    width: min(100%, 860px, calc(100dvh - 170px));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  /* Tablet and small laptop: keep the board full-width instead of halving it. */
+  @media (max-width: 1199px) and (min-width: 640px) {
     .game-layout {
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: minmax(0, 1fr);
       grid-template-areas:
-        "ledger   ledger"
-        "board    controls";
+        "ledger"
+        "board"
+        "controls";
+    }
+    .game-layout-ledger,
+    .game-layout-controls {
+      width: min(100%, 680px);
+      justify-self: center;
     }
   }
 
@@ -1088,6 +1120,14 @@
     .board-frame {
       padding: 8px;
     }
+    .game-play-stack {
+      width: 100%;
+      gap: 10px;
+    }
+    .board-grid {
+      gap: 1px;
+      padding: 6px;
+    }
     .game-layout {
       gap: 14px;
     }
@@ -1095,6 +1135,13 @@
       flex-wrap: wrap;
       gap: 5px;
       padding: 10px 12px;
+    }
+    .game-play-stack .td-rack {
+      width: 100%;
+    }
+    .tile-rack-list {
+      flex-wrap: wrap;
+      gap: 6px;
     }
   }
 

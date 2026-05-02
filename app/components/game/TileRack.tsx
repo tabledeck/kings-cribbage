@@ -21,7 +21,7 @@ export function TileRack({
   return (
     <div className="td-rack">
       <span className="label">Your tiles</span>
-      <div className="flex gap-2 items-center">
+      <div className="tile-rack-list">
         {tiles.map((tile) => {
           const isStaged = stagedIds.has(tile.id);
           const isSelected = selectedId === tile.id;

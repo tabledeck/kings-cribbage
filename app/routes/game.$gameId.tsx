@@ -775,7 +775,7 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
-            <div className="flex flex-col items-center gap-3">
+            <div className="game-play-stack">
               <Board
                 board={board}
                 stagedPlacements={stagedPlacements}
