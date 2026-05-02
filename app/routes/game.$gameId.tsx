@@ -576,7 +576,7 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
   const sortedPlayers = [...players].sort((a, b) => a.seat - b.seat);
 
   return (
-    <div className="td-surface game-room-surface">
+    <div className="td-surface game-room flex min-h-screen flex-col items-stretch gap-2 px-1.5 py-2 md:items-center md:gap-3 md:p-3">
       {/* Guest name modal */}
       {showNameModal && (
         <div className="td-modal-overlay">
@@ -666,25 +666,25 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
       )}
 
       {/* Header */}
-      <div className="game-header w-full max-w-screen-lg flex items-center justify-between px-2">
+      <div className="game-header flex w-full max-w-screen-lg items-center justify-between gap-2 px-1 md:px-2">
         <a
           href="/"
-          className="font-serif text-sm"
+          className="font-serif text-xs md:text-sm"
           style={{ color: "rgba(246,239,224,0.5)", fontVariant: "small-caps", letterSpacing: "0.12em" }}
         >
           ← Home
         </a>
         <h1
-          className="font-serif"
-          style={{ color: "#f6efe0", fontStyle: "italic", fontSize: 22, fontWeight: 600 }}
+          className="font-serif text-[20px] leading-none md:text-[22px]"
+          style={{ color: "#f6efe0", fontStyle: "italic", fontWeight: 600 }}
         >
           King&rsquo;s Cribbage
         </h1>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 md:gap-3">
           <button
             onClick={toggleMute}
-            className="flex items-center justify-center"
-            style={{ color: "rgba(246,239,224,0.55)", width: 28, height: 28 }}
+            className="flex h-6 w-6 items-center justify-center md:h-7 md:w-7"
+            style={{ color: "rgba(246,239,224,0.55)" }}
             title={muted ? "Unmute" : "Mute"}
             aria-label={muted ? "Unmute" : "Mute"}
           >
@@ -692,7 +692,7 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
           </button>
           <button
             onClick={handleCopyLink}
-            className="font-serif text-sm"
+            className="font-serif text-xs md:text-sm"
             style={{ color: "#c9a24a", fontVariant: "small-caps", letterSpacing: "0.14em" }}
           >
             {copied ? "Copied!" : "Share"}
@@ -753,10 +753,10 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
         </div>
       )}
 
-      {/* Score board + Board layout — three-column CSS grid */}
-      <div className="game-layout">
+      {/* Score board + Board layout */}
+      <div className="grid w-full max-w-[1600px] grid-cols-1 items-start gap-2 lg:grid-cols-[minmax(220px,280px)_minmax(0,1fr)_minmax(220px,280px)] lg:gap-[clamp(14px,1.6vw,28px)]">
         {/* Ledger */}
-        <div className="game-layout-ledger">
+        <div className="w-full min-w-0 md:max-w-[680px] md:justify-self-center lg:max-w-none">
           <ScoreBoard
             players={sortedPlayers}
             currentTurn={currentTurn}
@@ -767,7 +767,7 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
         </div>
 
         {/* Board + Rack share a DndContext */}
-        <div className="game-layout-board">
+        <div className="flex w-full min-w-0 justify-center">
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
@@ -775,7 +775,7 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
-            <div className="game-play-stack">
+            <div className="game-play-stack flex min-w-0 flex-col items-center gap-2 lg:gap-3">
               <Board
                 board={board}
                 stagedPlacements={stagedPlacements}
@@ -814,7 +814,7 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
 
         {/* Controls panel + Chat */}
         {mySeat >= 0 && (
-          <div className="game-layout-controls flex flex-col gap-3">
+          <div className="flex w-full max-w-[520px] flex-col gap-2 justify-self-center lg:max-w-none lg:gap-3">
             <GameControls
               stagedPlacements={stagedPlacements}
               board={board}

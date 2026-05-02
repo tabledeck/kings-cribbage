@@ -67,15 +67,6 @@
       );
   }
 
-  .game-room-surface {
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-    padding: 12px;
-  }
-
   /* ========== WALNUT BOX FRAME ========== */
   .td-box {
     max-width: 1280px;
@@ -1012,299 +1003,342 @@
     vertical-align: -3px;
   }
 
-  /* ========== GAME LAYOUT (three-column felt) ========== */
-  /*
-   * Desktop (≥ 1024px): ledger | board | controls — fixed 260px side panels,
-   * fluid 1fr centre so the 13×13 board dominates the viewport.
-   * Tablet  (640–1023px): ledger spans full width on top, then board + controls
-   * side-by-side below (1fr each). If the board still squishes at narrower
-   * tablets the @media at 640 falls through to single-column.
-   * Mobile  (<640px): single column — board first, then controls, then ledger.
-   */
-  .game-layout {
-    display: grid;
-    width: 100%;
-    max-width: 1600px;
-    gap: clamp(14px, 1.6vw, 28px);
-    align-items: start;
-    /* Desktop default — side columns stay useful while the 13x13 board dominates. */
-    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr) minmax(220px, 280px);
-    grid-template-areas: "ledger board controls";
+  /* ========== GAME LAYOUT RESPONSIVENESS ========== */
+  .game-room .game-play-stack {
+    width: min(100%, calc(100vw - 12px));
   }
 
-  .game-layout-ledger   { grid-area: ledger; }
-  .game-layout-board    {
-    grid-area: board;
-    min-width: 0;
-    width: 100%;
-    display: flex;
-    justify-content: center;
+  .game-room .board-frame {
+    padding: 7px;
+    border-radius: 9px;
   }
-  .game-layout-controls { grid-area: controls; }
 
-  .game-play-stack {
-    width: min(100%, 860px, calc(100dvh - 170px));
-    min-width: 0;
+  .game-room .board-grid {
+    gap: 1px;
+    padding: 5px;
+  }
+
+  .game-room .td-rack {
+    flex-wrap: nowrap;
+    gap: 6px;
+    padding: 8px;
+    border-radius: 5px;
+  }
+
+  .game-room .game-play-stack .td-rack {
+    width: 100%;
+  }
+
+  .game-room .td-rack .label {
+    font-size: 10px;
+    letter-spacing: 0.13em;
+    margin-right: 0;
+  }
+
+  .game-room .tile-rack-list {
     display: flex;
-    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+    flex-wrap: nowrap;
+    gap: 5px;
     align-items: center;
-    gap: 12px;
+    justify-content: space-between;
   }
 
-  /* Tablet and small laptop: keep the board full-width instead of halving it. */
-  @media (max-width: 1199px) and (min-width: 640px) {
-    .game-layout {
-      grid-template-columns: minmax(0, 1fr);
-      grid-template-areas:
-        "ledger"
-        "board"
-        "controls";
-    }
-    .game-layout-ledger,
-    .game-layout-controls {
-      width: min(100%, 680px);
-      justify-self: center;
-    }
+  .game-room .td-rack .tile-lg,
+  .game-room .td-rack .tile-rack,
+  .game-room .td-rack .tile-empty {
+    width: clamp(38px, 11.4vw, 46px) !important;
+    height: clamp(46px, 13.5vw, 54px) !important;
   }
 
-  /* Mobile: compact ledger on top, board fills viewport, controls at the bottom */
-  @media (max-width: 639px) {
-    .game-layout {
-      grid-template-columns: 1fr;
-      grid-template-areas:
-        "ledger"
-        "board"
-        "controls";
-    }
+  .game-room .td-rack .tile .n {
+    font-size: clamp(15px, 4.5vw, 19px);
   }
 
-  /* ========== MOBILE RESPONSIVENESS ========== */
+  .game-room .td-rack .tile .s {
+    font-size: clamp(8px, 2.4vw, 10px);
+  }
 
-  /*
-   * Box container: remove horizontal padding / large radius on
-   * narrow screens so the board fills the viewport edge-to-edge.
-   */
-  @media (max-width: 639px) {
-    .game-room-surface {
-      align-items: stretch;
-      gap: 8px;
-      padding: 8px 6px 14px;
-    }
-    .game-header {
-      padding-inline: 2px !important;
-    }
-    .game-header h1 {
-      font-size: 20px !important;
-      line-height: 1.05;
-    }
-    .game-header a,
-    .game-header button {
-      font-size: 12px !important;
-      letter-spacing: 0.11em !important;
-    }
-    .game-header button[aria-label] {
-      width: 24px !important;
-      height: 24px !important;
-    }
-    .td-box {
-      padding: 10px;
+  .game-room .td-ledger {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2px 8px;
+    padding: 6px 8px;
+    border-radius: 5px;
+  }
+
+  .game-room .td-ledger .hdr {
+    grid-column: 1 / -1;
+    padding-bottom: 4px;
+    margin-bottom: 0;
+    gap: 6px;
+  }
+
+  .game-room .td-ledger .hdr svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  .game-room .td-ledger .hdr h3 {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+  }
+
+  .game-room .td-ledger .meta {
+    font-size: 10px;
+  }
+
+  .game-room .td-ledger > .player-row {
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr) auto;
+    gap: 6px;
+    padding: 4px 0;
+    border-bottom: 0;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .game-room .td-ledger .player-row.active {
+    margin: 0;
+    padding-left: 4px;
+    padding-right: 4px;
+    border-radius: 4px;
+    box-shadow: inset 2px 0 0 var(--gold);
+  }
+
+  .game-room .medallion {
+    width: 18px;
+    height: 18px;
+    font-size: 10px;
+  }
+
+  .game-room .p-name {
+    min-width: 0;
+  }
+
+  .game-room .p-name .n {
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .game-room .p-name .status {
+    font-size: 9px;
+  }
+
+  .game-room .p-score {
+    font-size: 15px;
+  }
+
+  .game-room .td-panel {
+    padding: 8px 10px;
+    border-radius: 5px;
+  }
+
+  .game-room .td-panel h3 {
+    font-size: 13px;
+    margin-bottom: 6px;
+    padding-bottom: 5px;
+  }
+
+  .game-room .td-panel p {
+    margin: 0;
+    font-size: 12px !important;
+    line-height: 1.25;
+  }
+
+  .game-room .btn-primary,
+  .game-room .btn-secondary,
+  .game-room .btn-ghost {
+    padding: 8px 10px;
+    font-size: 12px;
+    margin-bottom: 5px;
+  }
+
+  .game-room .score-preview {
+    padding: 6px 4px;
+    font-size: 12px;
+  }
+
+  .game-room .td-chat-trigger {
+    padding: 6px 10px;
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    gap: 5px;
+  }
+
+  .game-room .td-chat-popup {
+    width: min(288px, calc(100vw - 32px));
+    right: auto;
+    left: 0;
+    transform: rotate(-0.75deg);
+  }
+
+  @media (min-width: 640px) {
+    .game-room .board-frame {
+      padding: 14px;
       border-radius: 10px;
     }
-    .td-plaque .td-plaque-name {
-      font-size: clamp(20px, 6vw, 32px);
-    }
-  }
 
-  /*
-   * Modal: prevent it overflowing below the fold on phones.
-   */
-  @media (max-width: 639px) {
-    .td-modal {
-      padding: 20px 18px;
-      max-height: calc(100dvh - 32px);
-      overflow-y: auto;
+    .game-room .board-grid {
+      gap: 2px;
+      padding: 8px;
     }
-  }
 
-  /*
-   * Board frame: ensure it doesn't exceed viewport width.
-   * The 13-col grid uses 1fr so it flexes, but any padding
-   * on the frame can push it over.
-   */
-  @media (max-width: 639px) {
-    .board-frame {
-      width: 100%;
-      padding: 7px;
-      border-radius: 9px;
+    .game-room .td-rack {
+      gap: 8px;
+      padding: 14px 18px;
+      border-radius: 6px;
     }
-    .game-play-stack {
-      width: calc(100vw - 12px);
-      max-width: 100%;
-      align-self: center;
+
+    .game-room .game-play-stack .td-rack {
+      width: min(100%, 640px);
+    }
+
+    .game-room .td-rack .label {
+      font-size: 12.5px;
+      letter-spacing: 0.16em;
+      margin-right: 4px;
+    }
+
+    .game-room .tile-rack-list {
+      flex: 0 1 auto;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .game-room .td-rack .tile-lg {
+      width: 48px !important;
+      height: 56px !important;
+    }
+
+    .game-room .td-rack .tile-rack,
+    .game-room .td-rack .tile-empty {
+      width: 44px !important;
+      height: 54px !important;
+    }
+
+    .game-room .td-rack .tile .n {
+      font-size: clamp(11px, 2.5vmin, 18px);
+    }
+
+    .game-room .td-rack .tile .s {
+      font-size: clamp(7px, 1.5vmin, 10px);
+    }
+
+    .game-room .td-ledger {
+      display: block;
+      padding: 18px 16px;
+      border-radius: 6px;
+    }
+
+    .game-room .td-ledger .hdr {
+      display: flex;
+      grid-column: auto;
+      padding-bottom: 10px;
+      margin-bottom: 10px;
       gap: 8px;
     }
-    .board-grid {
-      gap: 1px;
-      padding: 5px;
-    }
-    .game-layout {
-      gap: 8px;
-      justify-items: stretch;
-    }
-    .td-rack {
-      flex-wrap: nowrap;
-      gap: 6px;
-      padding: 8px 8px;
-      border-radius: 5px;
-    }
-    .game-play-stack .td-rack {
-      width: 100%;
-    }
-    .td-rack .label {
-      font-size: 10px;
-      letter-spacing: 0.13em;
-      margin-right: 0;
-    }
-    .tile-rack-list {
-      flex: 1;
-      min-width: 0;
-      flex-wrap: nowrap;
-      gap: 5px;
-      justify-content: space-between;
-    }
-    .td-rack .tile-lg,
-    .td-rack .tile-rack,
-    .td-rack .tile-empty {
-      width: clamp(38px, 11.4vw, 46px) !important;
-      height: clamp(46px, 13.5vw, 54px) !important;
-    }
-    .td-rack .tile .n {
-      font-size: clamp(15px, 4.5vw, 19px);
-    }
-    .td-rack .tile .s {
-      font-size: clamp(8px, 2.4vw, 10px);
-    }
-  }
 
-  /*
-   * Felt surface: reduce outer padding on phones.
-   */
-  @media (max-width: 639px) {
-    .td-felt {
-      padding: 12px;
-      gap: 14px;
+    .game-room .td-ledger .hdr svg {
+      width: 16px;
+      height: 16px;
     }
-  }
 
-  /*
-   * MOBILE: compact ledger strip at the top of the felt.
-   * The desktop vertical ledger becomes a horizontal scroll-strip so
-   * the board (the star of the show) can use almost the full viewport.
-   */
-  @media (max-width: 639px) {
-    .td-ledger {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 2px 8px;
-      padding: 6px 8px;
-      border-radius: 5px;
+    .game-room .td-ledger .hdr h3 {
+      font-size: 16px;
+      letter-spacing: 0.16em;
     }
-    /* Pull the header into a single compact bar. */
-    .td-ledger .hdr {
-      grid-column: 1 / -1;
-      padding-bottom: 4px;
-      margin-bottom: 0;
-      gap: 6px;
+
+    .game-room .td-ledger .meta {
+      font-size: 12.5px;
     }
-    .td-ledger .hdr svg { width: 12px; height: 12px; }
-    .td-ledger .hdr h3 {
-      font-size: 10px;
-      letter-spacing: 0.12em;
+
+    .game-room .td-ledger > .player-row {
+      grid-template-columns: 28px 1fr auto;
+      gap: 10px;
+      padding: 10px 2px;
+      border-bottom: 1px dashed rgba(26,22,18,0.2);
     }
-    .td-ledger .meta {
-      font-size: 10px;
+
+    .game-room .td-ledger .player-row.active {
+      margin: 0 -16px;
+      padding-left: 16px;
+      padding-right: 16px;
+      border-radius: 0;
+      box-shadow: inset 3px 0 0 var(--gold);
     }
-    .td-ledger > .hdr {
-      flex: 0 0 auto;
+
+    .game-room .medallion {
+      width: 28px;
+      height: 28px;
+      font-size: 15px;
     }
-    .td-ledger > .player-row {
-      display: grid;
-      grid-template-columns: 18px minmax(0, 1fr) auto;
-      gap: 6px;
-      padding: 4px 0;
-      border-bottom: 0;
-      align-items: center;
-      min-width: 0;
+
+    .game-room .p-name .n {
+      font-size: 15.5px;
+      white-space: normal;
+      overflow: visible;
+      text-overflow: clip;
     }
-    .td-ledger .player-row.active {
-      margin: 0;
-      padding-left: 4px;
-      padding-right: 4px;
-      border-radius: 4px;
-      box-shadow: inset 2px 0 0 var(--gold);
-    }
-    .medallion {
-      width: 18px;
-      height: 18px;
-      font-size: 10px;
-    }
-    .p-name { min-width: 0; }
-    .p-name .n {
+
+    .game-room .p-name .status {
       font-size: 12px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
     }
-    .p-name .status { font-size: 9px; }
-    .p-score { font-size: 15px; }
-    .p-delta { font-size: 10.5px; margin-top: 1px; }
-  }
 
-  /*
-   * MOBILE: shrink the chat trigger so it doesn't dominate the
-   * already-cramped controls column.
-   */
-  @media (max-width: 639px) {
-    .game-layout-controls {
-      width: min(100%, 520px);
-      justify-self: center;
+    .game-room .p-score {
+      font-size: 22px;
     }
-    .td-panel {
-      padding: 8px 10px;
-      border-radius: 5px;
+
+    .game-room .td-panel {
+      padding: 18px 16px;
+      border-radius: 6px;
     }
-    .td-panel h3 {
+
+    .game-room .td-panel h3 {
+      font-size: 16px;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+    }
+
+    .game-room .td-panel p {
+      font-size: 13px !important;
+      line-height: inherit;
+    }
+
+    .game-room .btn-primary,
+    .game-room .btn-secondary,
+    .game-room .btn-ghost {
+      padding: 11px 16px;
+      font-size: 14.5px;
+      margin-bottom: 8px;
+    }
+
+    .game-room .score-preview {
+      padding: 10px 6px;
       font-size: 13px;
-      margin-bottom: 6px;
-      padding-bottom: 5px;
     }
-    .td-panel p {
-      margin: 0;
-      font-size: 12px !important;
-      line-height: 1.25;
+
+    .game-room .td-chat-trigger {
+      padding: 8px 14px;
+      font-size: 13.5px;
+      letter-spacing: 0.16em;
+      gap: 6px;
     }
-    .btn-primary,
-    .btn-secondary,
-    .btn-ghost {
-      padding: 8px 10px;
-      font-size: 12px;
-      margin-bottom: 5px;
+
+    .game-room .td-chat-popup {
+      width: 288px;
+      right: 0;
+      left: auto;
+      transform: rotate(-1.5deg);
     }
-    .score-preview {
-      padding: 6px 4px;
-      font-size: 12px;
-    }
-    .td-chat-trigger {
-      padding: 6px 10px;
-      font-size: 12px;
-      letter-spacing: 0.14em;
-      gap: 5px;
-    }
-    .td-chat-popup {
-      width: min(288px, calc(100vw - 32px));
-      right: auto;
-      left: 0;
-      transform: rotate(-0.75deg);
+  }
+
+  @media (min-width: 768px) {
+    .game-room .game-play-stack {
+      width: min(100%, 860px, calc(100dvh - 170px));
     }
   }
 

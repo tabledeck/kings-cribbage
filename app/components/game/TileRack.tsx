@@ -40,7 +40,7 @@ export function TileRack({
             <div
               key={tile.id}
               onClick={() => isMyTurn && onSelectTile?.(tile.id)}
-              className={isSelected ? "td-rack tile-selected-ring rounded" : "rounded"}
+              className={isSelected ? "tile-selected-ring rounded" : "rounded"}
             >
               <DraggableTile
                 tile={tile}
