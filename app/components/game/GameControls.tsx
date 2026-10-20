@@ -13,6 +13,7 @@ interface GameControlsProps {
   board: BoardState;
   isMyTurn: boolean;
   isFirstMove: boolean;
+  isTouch: boolean;
   myRack: Tile[];
   onConfirm: () => void;
   onReset: () => void;
@@ -55,6 +56,7 @@ export function GameControls({
   board,
   isMyTurn,
   isFirstMove,
+  isTouch,
   myRack,
   onConfirm,
   onReset,
@@ -63,6 +65,7 @@ export function GameControls({
 }: GameControlsProps) {
   const [exchangeMode, setExchangeMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [passArmed, setPassArmed] = useState(false);
 
   const hasStaged = stagedPlacements.length > 0;
 
@@ -171,14 +174,29 @@ export function GameControls({
         </>
       ) : (
         <>
-          <p className="font-sans mb-3" style={{ fontSize: 13, color: "var(--ink-faint)", fontStyle: "italic" }}>
-            Drag a tile to the board
+          <p className="font-sans mb-3" style={{ fontSize: 13, color: "var(--ink-soft)", fontStyle: "italic" }}>
+            {isFirstMove
+              ? "First play: two or more tiles in a line through the crown, and the line has to score."
+              : isTouch
+                ? "Tap a tile, then tap a square. Lines score like cribbage."
+                : "Drag a tile onto the board, or click a tile then a square."}
           </p>
-          <BtnSecondary onClick={() => setExchangeMode(true)}>
+          <BtnSecondary onClick={() => { setPassArmed(false); setExchangeMode(true); }}>
             Exchange tiles
           </BtnSecondary>
-          <BtnSecondary ghost onClick={onPass}>
-            Pass turn
+          <BtnSecondary
+            ghost
+            onClick={() => {
+              if (!passArmed) {
+                setPassArmed(true);
+                window.setTimeout(() => setPassArmed(false), 2500);
+                return;
+              }
+              setPassArmed(false);
+              onPass();
+            }}
+          >
+            {passArmed ? "Tap again to pass" : "Pass turn"}
           </BtnSecondary>
         </>
       )}

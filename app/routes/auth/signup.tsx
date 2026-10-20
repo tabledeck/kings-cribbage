@@ -39,51 +39,46 @@ export default function Signup() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center p-4">
-      <h1 className="text-3xl font-bold text-white mb-2">King's Cribbage</h1>
-      <p className="text-gray-400 mb-8">Create an account to save your games</p>
-      <form
-        onSubmit={handleSignup}
-        className="flex flex-col gap-4 w-full max-w-sm"
-      >
+    <div className="td-surface auth-page">
+      <form onSubmit={handleSignup} className="td-lobby-card auth-card">
+        <h2>Create account</h2>
+        <p className="font-sans text-sm mb-4" style={{ color: "var(--ink-soft)" }}>
+          Save your King's Cribbage games.
+        </p>
         <input
           type="text"
           placeholder="Display name"
           required
+          autoComplete="nickname"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="bg-gray-800 text-white rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500"
+          aria-label="Display name"
         />
         <input
           type="email"
           placeholder="Email"
           required
+          autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="bg-gray-800 text-white rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500"
+          aria-label="Email"
         />
         <input
           type="password"
-          placeholder="Password (min 8 chars)"
+          placeholder="Password (min 8 characters)"
           required
           minLength={8}
+          autoComplete="new-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="bg-gray-800 text-white rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500"
+          aria-label="Password"
         />
-        {error && <p className="text-red-400 text-sm text-center">{error}</p>}
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold rounded-lg px-4 py-3 transition-colors"
-        >
+        {error && <p className="td-error mb-3">{error}</p>}
+        <button type="submit" disabled={loading} className="btn-primary">
           {loading ? "Creating account..." : "Create Account"}
         </button>
-        <p className="text-gray-400 text-sm text-center">
-          Already have an account?{" "}
-          <a href="/login" className="text-emerald-400 hover:underline">
-            Sign in
-          </a>
+        <p className="auth-switch">
+          Already have an account? <a href="/login">Sign in</a>
         </p>
       </form>
     </div>

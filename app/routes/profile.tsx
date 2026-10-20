@@ -62,78 +62,60 @@ export default function Profile({ loaderData }: Route.ComponentProps) {
   const finished = games.filter((g) => g.status === "finished").length;
 
   return (
-    <div className="min-h-screen bg-gray-950 p-4 max-w-2xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <a href="/" className="text-gray-400 hover:text-white text-sm">
-          ← Home
-        </a>
-        <a href="/logout" className="text-gray-500 hover:text-gray-300 text-sm">
-          Logout
-        </a>
-      </div>
-
-      <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800 mb-6">
-        <h1 className="text-white font-bold text-2xl mb-1">
-          {user.name || user.email}
-        </h1>
-        <p className="text-gray-500 text-sm">{user.email}</p>
-        <div className="flex gap-6 mt-4">
-          <div className="text-center">
-            <p className="text-white font-bold text-2xl">{finished}</p>
-            <p className="text-gray-500 text-xs">Games</p>
+    <div className="td-surface auth-page" style={{ justifyContent: "flex-start", paddingTop: 24 }}>
+      <nav className="lobby-nav" style={{ marginBottom: 16 }}>
+        <a href="/" className="lobby-nav-link">← Table</a>
+        <a href="/logout" className="lobby-nav-link is-quiet">Logout</a>
+      </nav>
+      <div className="td-lobby-card" style={{ maxWidth: 560 }}>
+        <h2>{user.name || user.email}</h2>
+        <p className="font-sans text-sm" style={{ color: "var(--ink-faint)", marginTop: -8 }}>{user.email}</p>
+        <div className="flex gap-6 mt-4 mb-2">
+          <div>
+            <p className="font-mono text-2xl" style={{ color: "var(--walnut)", margin: 0 }}>{finished}</p>
+            <p className="font-serif text-xs" style={{ color: "var(--ink-faint)" }}>Finished</p>
           </div>
-          <div className="text-center">
-            <p className="text-emerald-400 font-bold text-2xl">{wins}</p>
-            <p className="text-gray-500 text-xs">Wins</p>
+          <div>
+            <p className="font-mono text-2xl" style={{ color: "var(--wine)", margin: 0 }}>{wins}</p>
+            <p className="font-serif text-xs" style={{ color: "var(--ink-faint)" }}>Wins</p>
           </div>
-          <div className="text-center">
-            <p className="text-white font-bold text-2xl">
+          <div>
+            <p className="font-mono text-2xl" style={{ color: "var(--walnut)", margin: 0 }}>
               {finished > 0 ? Math.round((wins / finished) * 100) : 0}%
             </p>
-            <p className="text-gray-500 text-xs">Win rate</p>
+            <p className="font-serif text-xs" style={{ color: "var(--ink-faint)" }}>Win rate</p>
           </div>
         </div>
       </div>
-
-      <h2 className="text-white font-semibold mb-3">Recent Games</h2>
-      <div className="space-y-3">
+      <div className="w-full mt-4" style={{ maxWidth: 560 }}>
         {games.length === 0 && (
-          <p className="text-gray-500 text-sm">No games yet. Create one!</p>
+          <p className="font-sans text-sm text-center" style={{ color: "rgba(246,239,224,0.7)" }}>
+            No games yet.
+          </p>
         )}
-        {games.map((g) => (
-          <a
-            key={g.gameId}
-            href={`/game/${g.gameId}`}
-            className="block bg-gray-900 rounded-xl p-4 border border-gray-800 hover:border-gray-600 transition-colors"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-gray-300 font-mono text-sm">#{g.gameId}</span>
-              <span
-                className={`text-xs px-2 py-0.5 rounded-full ${
-                  g.status === "finished"
-                    ? "bg-gray-700 text-gray-400"
-                    : g.status === "active"
-                      ? "bg-emerald-900 text-emerald-400"
-                      : "bg-yellow-900 text-yellow-400"
-                }`}
-              >
-                {g.status}
-              </span>
-            </div>
-            <div className="flex gap-3 flex-wrap">
-              {g.players
-                .sort((a, b) => b.score - a.score)
-                .map((p) => (
-                  <span
-                    key={p.seat}
-                    className={`text-sm ${p.seat === g.seat ? "text-emerald-400 font-semibold" : "text-gray-400"}`}
-                  >
-                    {p.name}: {p.score}
-                  </span>
-                ))}
-            </div>
-          </a>
-        ))}
+        <div className="flex flex-col gap-3">
+          {games.map((g) => (
+            <a key={g.gameId} href={`/game/${g.gameId}`} className="td-plaque" style={{ display: "block", textDecoration: "none" }}>
+              <div className="flex items-center justify-between w-full gap-3">
+                <span className="font-mono text-sm" style={{ color: "var(--walnut)" }}>#{g.gameId}</span>
+                <span className="font-serif text-sm" style={{ color: "var(--wine)" }}>{g.status}</span>
+              </div>
+              <div className="flex gap-3 flex-wrap mt-2">
+                {g.players
+                  .sort((a, b) => b.score - a.score)
+                  .map((p) => (
+                    <span
+                      key={p.seat}
+                      className="font-sans text-sm"
+                      style={{ color: p.seat === g.seat ? "var(--wine)" : "var(--ink-soft)", fontWeight: p.seat === g.seat ? 700 : 400 }}
+                    >
+                      {p.name}: {p.score}
+                    </span>
+                  ))}
+              </div>
+            </a>
+          ))}
+        </div>
       </div>
     </div>
   );

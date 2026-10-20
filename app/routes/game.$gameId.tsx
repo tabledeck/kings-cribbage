@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import { WIN_SCORE_THRESHOLD } from "~/domain/game-logic";
 import { data, redirect, useFetcher } from "react-router";
 import type { Route } from "./+types/game.$gameId";
 import { getPrisma } from "~/db.server";
@@ -248,7 +249,9 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
   const [board, setBoard] = useState(() =>
     boardData ? deserializeBoard(boardData as any) : new Map(),
   );
-  const [players, setPlayers] = useState(dbPlayers);
+  const [players, setPlayers] = useState(
+    dbPlayers.map((p) => ({ ...p, connected: true as boolean })),
+  );
   const [currentTurn, setCurrentTurn] = useState(0);
   const [bagCount, setBagCount] = useState(104 - maxPlayers * 5);
   const [status, setStatus] = useState(gameStatus);
@@ -272,7 +275,7 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
     setPlayers((prev) => {
       const byKey = new Map(prev.map((p) => [p.seat, p]));
       for (const dp of dbPlayers) {
-        if (!byKey.has(dp.seat)) byKey.set(dp.seat, dp);
+        if (!byKey.has(dp.seat)) byKey.set(dp.seat, { ...dp, connected: true });
       }
       return [...byKey.values()].sort((a, b) => a.seat - b.seat);
     });
@@ -292,9 +295,21 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
   const [copied, setCopied] = useState(false);
   const [creatingRematch, setCreatingRematch] = useState(false);
   const [rematchError, setRematchError] = useState("");
+  const [rematchOffer, setRematchOffer] = useState<{ url: string; fromName: string; fromSeat: number } | null>(null);
+  const [showResults, setShowResults] = useState(true);
+  const [confirmLeave, setConfirmLeave] = useState(false);
+  const [liveShareUrl, setLiveShareUrl] = useState(shareUrl);
 
-  // Mobile: selected tile for tap-to-place
+  // Selected tile for tap-to-place (works with a mouse or a finger)
   const [selectedTileId, setSelectedTileId] = useState<number | null>(null);
+
+  useEffect(() => {
+    setLiveShareUrl(`${window.location.origin}/game/${gameId}`);
+  }, [gameId]);
+
+  useEffect(() => {
+    if (status === "finished") setShowResults(true);
+  }, [status]);
 
   const { send } = useGameWebSocket({
     gameId,
@@ -311,6 +326,7 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
               seat: p.seat,
               name: p.name,
               score: p.score,
+              connected: p.connected !== false,
             })));
             if (s?.currentTurn !== undefined) setCurrentTurn(s.currentTurn);
             if (s?.status) setStatus(s.status);
@@ -359,7 +375,7 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
             }
             if (m.scores) {
               setPlayers((prev) =>
-                prev.map((p, i) => ({ ...p, score: m.scores[i] ?? p.score })),
+                prev.map((p) => ({ ...p, score: m.scores[p.seat] ?? p.score })),
               );
             }
             if (m.nextTurn !== undefined) {
@@ -382,9 +398,16 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
             const pj = msg as any;
             setPlayers((prev) => {
               const exists = prev.find((p) => p.seat === pj.seat);
-              if (exists) return prev.map((p) => p.seat === pj.seat ? { ...p, name: pj.name } : p);
-              return [...prev, { seat: pj.seat, name: pj.name, score: 0 }];
+              if (exists) return prev.map((p) => p.seat === pj.seat ? { ...p, name: pj.name, connected: true } : p);
+              return [...prev, { seat: pj.seat, name: pj.name, score: 0, connected: true }];
             });
+            break;
+          }
+          case "player_disconnected": {
+            const pd = msg as any;
+            setPlayers((prev) =>
+              prev.map((p) => p.seat === pd.seat ? { ...p, connected: false } : p),
+            );
             break;
           }
           case "chat_broadcast": {
@@ -403,8 +426,16 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
             setWinner(go.winner);
             if (go.finalScores) {
               setPlayers((prev) =>
-                prev.map((p, i) => ({ ...p, score: go.finalScores[i] ?? p.score })),
+                prev.map((p) => ({ ...p, score: go.finalScores[p.seat] ?? p.score })),
               );
+            }
+            break;
+          }
+          case "rematch_offer": {
+            const offer = msg as any;
+            setRematchOffer({ url: offer.url, fromName: offer.fromName, fromSeat: offer.fromSeat });
+            if (offer.fromSeat === mySeat && typeof offer.url === "string") {
+              window.location.href = offer.url;
             }
             break;
           }
@@ -461,7 +492,7 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
       // Optimistically add ourselves to the player list immediately
       setPlayers((prev) => {
         if (prev.find((p) => p.seat === result.seat)) return prev;
-        return [...prev, { seat: result.seat!, name: result.name!, score: 0 }];
+        return [...prev, { seat: result.seat!, name: result.name!, score: 0, connected: true }];
       });
     }
   }, [joinFetcher.state, joinFetcher.data]);
@@ -567,10 +598,24 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
     send({ type: "pass_turn" });
   }, [send]);
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(shareUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopyLink = async () => {
+    const url = liveShareUrl;
+    const nav = navigator as Navigator & { share?: (data: ShareData) => Promise<void> };
+    if (isTouchDevice && nav.share) {
+      try {
+        await nav.share({ title: "King's Cribbage", text: "Join my game", url });
+        return;
+      } catch (err) {
+        if ((err as Error).name === "AbortError") return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
   };
 
   const handleRematch = async () => {
@@ -592,7 +637,12 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
         return;
       }
 
-      window.location.href = `/game/${body.gameId}`;
+      const nextUrl = `/game/${body.gameId}`;
+      send({ type: "rematch_offer", url: nextUrl });
+      // The socket echo navigates us. If it never arrives, go anyway.
+      window.setTimeout(() => {
+        if (window.location.pathname !== nextUrl) window.location.href = nextUrl;
+      }, 700);
     } catch {
       setRematchError("Network error. Please try again.");
       setCreatingRematch(false);
@@ -604,9 +654,32 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
 
   // Sort players by seat
   const sortedPlayers = [...players].sort((a, b) => a.seat - b.seat);
+  const displayPlayers = status === "waiting"
+    ? Array.from({ length: maxPlayers }, (_, seat) => {
+        const seated = sortedPlayers.find((p) => p.seat === seat);
+        return seated ?? { seat, name: "Open seat", score: 0, connected: false, empty: true };
+      })
+    : sortedPlayers;
+  const activeName = sortedPlayers.find((p) => p.seat === currentTurn)?.name;
+  const turnBanner =
+    status === "waiting"
+      ? `Waiting for players · ${sortedPlayers.length} of ${maxPlayers}`
+      : status === "guessing"
+        ? mySeat >= 0 && effectiveMyGuess === null
+          ? "Guess a number from 1 to 10. Closest goes first."
+          : "Waiting for the other guesses"
+        : status === "finished"
+          ? "Game over"
+          : isMyTurn
+            ? board.size === 0
+              ? "Your turn — play through the crown"
+              : "Your turn"
+            : activeName
+              ? `Waiting for ${activeName}`
+              : "Waiting for the other player";
 
   return (
-    <div className="td-surface game-room flex min-h-screen flex-col items-stretch gap-2 px-1.5 py-2 md:items-center md:gap-3 md:p-3">
+    <div className="td-surface game-room">
       {/* Guest name modal */}
       {showNameModal && (
         <div className="td-modal-overlay">
@@ -638,7 +711,7 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
               onClick={handleJoinAsGuest}
               disabled={joinFetcher.state !== "idle" || !guestName.trim()}
             >
-              {joinFetcher.state !== "idle" ? "Joining…" : "Join"}
+              {joinFetcher.state !== "idle" ? "Joining…" : "Take a seat"}
             </BtnPrimary>
             <a
               href="/"
@@ -651,8 +724,24 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
         </div>
       )}
 
+      {/* Leave confirm */}
+      {confirmLeave && (
+        <div className="td-modal-overlay">
+          <div className="td-modal text-center">
+            <h2>Leave this table?</h2>
+            <p>Your opponent will see that you disconnected. The game stays here if you come back.</p>
+            <BtnPrimary onClick={() => { window.location.href = "/"; }}>
+              Leave
+            </BtnPrimary>
+            <button type="button" className="btn-ghost" onClick={() => setConfirmLeave(false)}>
+              Keep playing
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Game over modal */}
-      {status === "finished" && (
+      {status === "finished" && showResults && (
         <div className="td-modal-overlay">
           <div className="td-modal text-center">
             <h2 className="font-serif" style={{ color: "var(--walnut)" }}>
@@ -663,11 +752,11 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
                 className="font-serif mb-4"
                 style={{ fontSize: 18, color: "var(--gold)", fontStyle: "italic" }}
               >
-                {sortedPlayers.find((p) => p.seat === winner)?.name ?? "Unknown"} wins!
+                {sortedPlayers.find((p) => p.seat === winner)?.name ?? "Unknown"} wins
               </p>
             )}
             <div className="space-y-2 mb-5">
-              {sortedPlayers
+              {[...sortedPlayers]
                 .sort((a, b) => b.score - a.score)
                 .map((p) => (
                   <div key={p.seat} className="flex justify-between font-sans" style={{ color: "var(--ink-soft)", fontSize: 15 }}>
@@ -676,58 +765,89 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
                   </div>
                 ))}
             </div>
+            {rematchOffer && rematchOffer.fromSeat !== mySeat && (
+              <p className="font-sans text-sm mb-3" style={{ color: "var(--forest)" }}>
+                {rematchOffer.fromName} opened a rematch.
+              </p>
+            )}
             {rematchError && (
               <p className="td-error mb-3">
                 {rematchError}
               </p>
             )}
-            <BtnPrimary onClick={handleRematch} disabled={creatingRematch}>
-              {creatingRematch ? "Starting rematch..." : "Rematch same rules"}
-            </BtnPrimary>
+            {rematchOffer && rematchOffer.fromSeat !== mySeat ? (
+              <BtnPrimary onClick={() => { window.location.href = rematchOffer.url; }}>
+                Join rematch
+              </BtnPrimary>
+            ) : (
+              <BtnPrimary onClick={handleRematch} disabled={creatingRematch}>
+                {creatingRematch ? "Starting rematch..." : "Rematch"}
+              </BtnPrimary>
+            )}
             <button
               type="button"
-              className="btn-ghost mt-3"
-              onClick={() => window.location.href = "/"}
+              className="btn-ghost"
+              onClick={() => setShowResults(false)}
             >
-              New Game
+              See the board
+            </button>
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={() => { window.location.href = "/"; }}
+            >
+              Leave
             </button>
           </div>
         </div>
       )}
 
       {/* Header */}
-      <div className="game-header flex w-full max-w-screen-lg items-center justify-between gap-2 px-1 md:px-2">
-        <a
-          href="/"
-          className="font-serif text-xs md:text-sm"
-          style={{ color: "rgba(246,239,224,0.5)", fontVariant: "small-caps", letterSpacing: "0.12em" }}
+      <div className="game-header">
+        <button
+          type="button"
+          className="header-action"
+          onClick={() => {
+            if (status === "active" || status === "guessing") setConfirmLeave(true);
+            else window.location.href = "/";
+          }}
         >
-          ← Home
-        </a>
-        <h1
-          className="font-serif text-[20px] leading-none md:text-[22px]"
-          style={{ color: "#f6efe0", fontStyle: "italic", fontWeight: 600 }}
-        >
-          King&rsquo;s Cribbage
-        </h1>
-        <div className="flex items-center gap-2 md:gap-3">
+          Leave
+        </button>
+        <h1>King&rsquo;s Cribbage</h1>
+        <div className="header-actions">
           <button
             onClick={toggleMute}
-            className="flex h-6 w-6 items-center justify-center md:h-7 md:w-7"
-            style={{ color: "rgba(246,239,224,0.55)" }}
+            className="header-icon"
             title={muted ? "Unmute" : "Mute"}
             aria-label={muted ? "Unmute" : "Mute"}
+            aria-pressed={muted}
           >
             <MuteIcon muted={muted} />
           </button>
           <button
             onClick={handleCopyLink}
-            className="font-serif text-xs md:text-sm"
-            style={{ color: "#c9a24a", fontVariant: "small-caps", letterSpacing: "0.14em" }}
+            className="header-action header-action-gold"
           >
-            {copied ? "Copied!" : "Share"}
+            {copied ? "Copied" : "Share"}
           </button>
         </div>
+      </div>
+
+      <div
+        className={`turn-banner ${isMyTurn ? "is-you" : ""} ${status === "finished" ? "is-over" : ""}`}
+        role="status"
+        aria-live="polite"
+      >
+        <span>{turnBanner}</span>
+        {status === "finished" && !showResults && (
+          <button type="button" className="banner-link" onClick={() => setShowResults(true)}>
+            Results
+          </button>
+        )}
+        {(status === "active" || status === "finished") && (
+          <span className="banner-goal"> · to {WIN_SCORE_THRESHOLD}</span>
+        )}
       </div>
 
       {/* Waiting state */}
@@ -740,8 +860,11 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
           <BtnPrimary onClick={handleCopyLink} fullWidth={false} className="mx-auto" style={{ width: "auto", display: "inline-flex" }}>
             {copied ? "Copied!" : "Copy invite link"}
           </BtnPrimary>
-          <p className="font-mono text-xs mt-2" style={{ color: "var(--ink-faint)", wordBreak: "break-all" }}>
-            {shareUrl}
+          <p className="font-mono text-xs mt-2" style={{ color: "var(--ink-soft)", wordBreak: "break-all" }}>
+            {liveShareUrl}
+          </p>
+          <p className="font-sans text-sm mt-3" style={{ color: "var(--ink-soft)" }}>
+            The deal starts when every seat is filled.
           </p>
         </div>
       )}
@@ -785,8 +908,7 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
                 <button
                   key={n}
                   onClick={() => handleGuessNumber(n)}
-                  className="bid-chip font-serif font-bold"
-                  style={{ width: 40, height: 40, padding: 0, flex: "none" }}
+                  className="bid-chip guess-chip font-serif font-bold"
                 >
                   {n}
                 </button>
@@ -810,15 +932,16 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
       )}
 
       {/* Score board + Board layout */}
-      <div className="game-layout-board-first grid w-full max-w-[1600px] grid-cols-1 items-start gap-2 2xl:grid-cols-[minmax(220px,280px)_minmax(0,1fr)_minmax(220px,280px)] 2xl:gap-[clamp(14px,1.6vw,28px)]">
+      <div className="game-layout">
         {/* Ledger */}
-        <div className="game-layout-ledger w-full min-w-0 md:max-w-[680px] md:justify-self-center 2xl:max-w-none">
+        <div className="game-layout-ledger">
           <ScoreBoard
-            players={sortedPlayers}
+            players={displayPlayers}
             currentTurn={currentTurn}
             yourSeat={mySeat}
             bagCount={bagCount}
             status={status}
+            winner={winner}
           />
         </div>
 
@@ -831,13 +954,15 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
-            <div className="game-play-stack flex min-w-0 flex-col items-center gap-2 lg:gap-3">
+            <div className="game-play-stack">
+              <div className="board-slot">
               <Board
                 board={board}
                 stagedPlacements={stagedPlacements}
                 playerRack={myRack}
                 isMyTurn={isMyTurn}
                 isTouchDevice={isTouchDevice}
+                highlightCenter={isMyTurn && board.size === 0}
                 selectedTile={myRack.find((t) => t.id === selectedTileId) ?? null}
                 onStageTile={handleStageTile}
                 onUnstage={(tileId) =>
@@ -848,9 +973,10 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
                 popups={popups}
                 invalidStagedPositions={invalidStagedPositions}
               />
+              </div>
 
               {/* Rack */}
-              {mySeat >= 0 && (
+              {mySeat >= 0 && (status === "active" || status === "finished") && (
                 <TileRack
                   tiles={myRack}
                   stagedIds={stagedIds}
@@ -869,13 +995,14 @@ export default function GameRoom({ loaderData }: Route.ComponentProps) {
         </div>
 
         {/* Controls panel + Chat */}
-        {mySeat >= 0 && (
-          <div className="game-layout-controls flex w-full max-w-[520px] flex-col gap-2 justify-self-center 2xl:max-w-none 2xl:gap-3">
+        {mySeat >= 0 && status === "active" && (
+          <div className="game-layout-controls">
             <GameControls
               stagedPlacements={stagedPlacements}
               board={board}
               isMyTurn={isMyTurn}
               isFirstMove={board.size === 0}
+              isTouch={isTouchDevice}
               myRack={myRack}
               onConfirm={handleConfirm}
               onReset={handleReset}

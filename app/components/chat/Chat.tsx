@@ -41,7 +41,8 @@ export function Chat({ messages, yourSeat, onSend, isOpen, onToggle }: ChatProps
       <button
         onClick={onToggle}
         className="td-chat-trigger"
-        aria-label="Toggle chat"
+        aria-expanded={isOpen}
+        aria-label={isOpen ? "Close chat" : "Open chat"}
       >
         <ChatIcon />
         Chat
@@ -90,6 +91,7 @@ export function Chat({ messages, yourSeat, onSend, isOpen, onToggle }: ChatProps
                 placeholder="Type a message…"
                 maxLength={200}
                 className="td-chat-input"
+                aria-label="Chat message"
               />
               <button
                 onClick={handleSend}
