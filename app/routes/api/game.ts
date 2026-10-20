@@ -12,6 +12,7 @@ const CopiedSettingsSchema = z.object({
 
 const CreateGameSchema = CopiedSettingsSchema.extend({
   rematchOf: z.string().min(1).optional(),
+  guestName: z.string().trim().min(1).max(20).optional(),
 });
 
 export async function action({ request, context }: Route.ActionArgs) {
@@ -26,7 +27,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 
   const db = getPrisma(context);
-  const { rematchOf } = parsed.data;
+  const { rematchOf, guestName } = parsed.data;
   let { maxPlayers, timePerTurn } = parsed.data;
 
   if (rematchOf) {
@@ -83,8 +84,10 @@ export async function action({ request, context }: Route.ActionArgs) {
     }),
   );
 
-  // If user is logged in, auto-join seat 0
+  // Seat the creator immediately so the waiting room (and its share link)
+  // is visible without a second "join" step.
   const user = getOptionalUserFromContext(context);
+  let setCookie: string | null = null;
   if (user) {
     // Sync user into D1_DATABASE (users live in AUTH_DB; D1 enforces FK constraints)
     await db.user.upsert({
@@ -100,7 +103,15 @@ export async function action({ request, context }: Route.ActionArgs) {
         guestName: null,
       },
     });
+  } else if (guestName) {
+    await db.gamePlayer.create({
+      data: { gameId, guestName, seat: 0 },
+    });
+    setCookie = `kc_${gameId}=0:${encodeURIComponent(guestName)}; Path=/; Max-Age=86400; SameSite=Lax`;
   }
 
-  return data({ gameId });
+  return data(
+    { gameId },
+    setCookie ? { headers: { "Set-Cookie": setCookie } } : undefined,
+  );
 }

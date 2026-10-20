@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
+import { WIN_SCORE_THRESHOLD } from "~/domain/game-logic";
 import type { Route } from "./+types/_index";
 import { getOptionalUserFromContext } from "~/domain/utils/global-context.server";
 import { BtnPrimary } from "~/components/tabledeck/BtnPrimary";
@@ -75,92 +76,74 @@ export default function Index({ loaderData }: Route.ComponentProps) {
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
   const [playerCount, setPlayerCount] = useState(2);
+  const [guestName, setGuestName] = useState("");
+  const [createError, setCreateError] = useState("");
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem("kc-player-name");
+    if (saved) setGuestName(saved);
+  }, []);
 
   const createGame = async () => {
+    const name = guestName.trim();
+    if (!user && name.length < 1) {
+      setCreateError("Add your name so the table knows who invited them.");
+      return;
+    }
     setCreating(true);
+    setCreateError("");
     try {
+      if (!user) window.localStorage.setItem("kc-player-name", name);
       const res = await fetch("/api/game", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ maxPlayers: playerCount }),
+        body: JSON.stringify({
+          maxPlayers: playerCount,
+          ...(user ? {} : { guestName: name }),
+        }),
       });
-      const { gameId } = (await res.json()) as { gameId: string };
-      navigate(`/game/${gameId}`);
+      const body = (await res.json()) as { gameId?: string; error?: string };
+      if (!res.ok || !body.gameId) {
+        setCreateError(body.error ?? "Could not create a game.");
+        setCreating(false);
+        return;
+      }
+      navigate(`/game/${body.gameId}`);
     } catch {
+      setCreateError("Network error. Please try again.");
       setCreating(false);
     }
   };
 
   return (
-    <div className="td-surface min-h-screen flex flex-col items-center justify-center p-4 relative">
-      {/* Nav bar */}
-      <a
-        href="https://tabledeck.us"
-        className="absolute top-5 left-5 font-serif text-sm"
-        style={{ color: "rgba(246,239,224,0.5)", fontVariant: "small-caps", letterSpacing: "0.15em" }}
-      >
-        ← Tabledeck
-      </a>
-      <div className="absolute top-5 right-5 flex gap-4 items-center">
-        {user ? (
-          <>
-            <a
-              href="/profile"
-              className="font-sans text-sm"
-              style={{ color: "rgba(246,239,224,0.7)" }}
-            >
-              {user.name || user.email}
-            </a>
-            <a
-              href="/logout"
-              className="font-sans text-sm"
-              style={{ color: "rgba(246,239,224,0.45)" }}
-            >
-              Logout
-            </a>
-          </>
-        ) : (
-          <>
-            <a
-              href="/login"
-              className="font-sans text-sm"
-              style={{ color: "rgba(246,239,224,0.7)" }}
-            >
-              Login
-            </a>
-            <a
-              href="/signup"
-              className="font-sans text-sm font-medium"
-              style={{ color: "#e8c872" }}
-            >
-              Sign Up
-            </a>
-          </>
-        )}
-      </div>
+    <div className="td-surface lobby-page">
+      <nav className="lobby-nav">
+        <a href="https://tabledeck.us" className="lobby-nav-link">
+          ← Tabledeck
+        </a>
+        <div className="lobby-nav-links">
+          {user ? (
+            <>
+              <a href="/profile" className="lobby-nav-link">{user.name || user.email}</a>
+              <a href="/logout" className="lobby-nav-link is-quiet">Logout</a>
+            </>
+          ) : (
+            <>
+              <a href="/login" className="lobby-nav-link">Login</a>
+              <a href="/signup" className="lobby-nav-link is-gold">Sign Up</a>
+            </>
+          )}
+        </div>
+      </nav>
 
       {/* Hero */}
       <div className="flex flex-col items-center mb-10">
         <KingsCrest size={88} />
-        <h1
-          className="font-serif mt-4"
-          style={{
-            fontWeight: 600,
-            fontStyle: "italic",
-            fontSize: 48,
-            color: "#f6efe0",
-            lineHeight: 1,
-            letterSpacing: "0.01em",
-            textShadow: "0 2px 12px rgba(0,0,0,0.5)",
-          }}
-        >
+        <h1 className="lobby-title font-serif mt-4">
           King&rsquo;s Cribbage
         </h1>
-        <p
-          className="font-serif mt-2 text-center max-w-xs"
-          style={{ fontVariant: "small-caps", letterSpacing: "0.22em", fontSize: 11, color: "rgba(201,162,74,0.8)" }}
-        >
-          Tabledeck &middot; First to 121
+        <p className="lobby-kicker">
+          Tabledeck &middot; First to {WIN_SCORE_THRESHOLD}
         </p>
         <p
           className="font-sans mt-3 text-center max-w-sm"
@@ -175,6 +158,25 @@ export default function Index({ loaderData }: Route.ComponentProps) {
       <div className="td-lobby-card">
         <h2>New Game</h2>
 
+        {!user && (
+          <>
+            <label htmlFor="player-name">Your name</label>
+            <input
+              id="player-name"
+              className="lobby-name"
+              type="text"
+              placeholder="How should we deal you in?"
+              value={guestName}
+              maxLength={20}
+              autoComplete="nickname"
+              onChange={(e) => setGuestName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") createGame();
+              }}
+            />
+          </>
+        )}
+
         <label>Players</label>
         <div className="flex gap-2 mb-5">
           {[2, 3, 4].map((n) => (
@@ -187,6 +189,8 @@ export default function Index({ loaderData }: Route.ComponentProps) {
             </button>
           ))}
         </div>
+
+        {createError && <p className="td-error mb-3">{createError}</p>}
 
         <BtnPrimary
           onClick={createGame}

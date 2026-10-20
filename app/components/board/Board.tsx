@@ -18,6 +18,7 @@ interface BoardProps {
   playerRack: Tile[];
   isMyTurn: boolean;
   isTouchDevice: boolean;
+  highlightCenter?: boolean;
   selectedTile: Tile | null;
   onStageTile: (placement: Placement) => void;
   onUnstage: (tileId: number) => void;
@@ -32,6 +33,7 @@ export function Board({
   stagedPlacements,
   isMyTurn,
   isTouchDevice,
+  highlightCenter = false,
   selectedTile,
   onStageTile,
   onUnstage,
@@ -79,9 +81,10 @@ export function Board({
             staged={!!stagedTile}
             invalid={!!stagedTile && (invalidStagedPositions?.has(key) ?? false)}
             isCenter={r === 6 && c === 6}
+            highlightCenter={highlightCenter && r === 6 && c === 6}
             isLastPlaced={isLastPlaced && !stagedTile}
             onTapToPlace={
-              isTouchDevice && isMyTurn && !tile ? handleTapCell : undefined
+              isMyTurn && !tile && (isTouchDevice || selectedTile) ? handleTapCell : undefined
             }
             onUnstage={
               stagedTile && isMyTurn ? () => onUnstage(stagedTile.id) : undefined

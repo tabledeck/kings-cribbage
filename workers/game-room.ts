@@ -208,6 +208,14 @@ export class GameRoomDO extends BaseGameRoomDO<GameState, GameSettings, Env> {
             playerName: this.gameState.players[seat]?.name ?? playerName,
           }));
           break;
+        case "rematch_offer":
+          this.broadcast(JSON.stringify({
+            type: "rematch_offer",
+            url: msg.url,
+            fromSeat: seat,
+            fromName: this.gameState.players[seat]?.name ?? playerName,
+          }));
+          break;
       }
     } catch (err) {
       console.error("[kings-cribbage] Unexpected error in onGameMessage:", err);
@@ -218,12 +226,26 @@ export class GameRoomDO extends BaseGameRoomDO<GameState, GameSettings, Env> {
   }
 
   protected getPrivateStateForSeat(seat: number): Record<string, unknown> {
+    // Re-assert D1 status on every connect. A missed write (or a game that
+    // finished while this isolate was evicted mid-update) heals the next time
+    // anyone opens the table. Idempotent: active only promotes `waiting`,
+    // and finished keeps the original finishedAt.
+    this.state.waitUntil(this.syncStatusToDB());
     return {
       yourSeat: seat,
       yourRack: seat >= 0 && this.gameState?.players[seat]
         ? this.gameState.players[seat].rack
         : [],
     };
+  }
+
+  /** Scores indexed by seat, safe when the players array has holes. */
+  private seatScores(): number[] {
+    const scores: number[] = [];
+    for (const p of this.gameState?.players ?? []) {
+      if (p) scores[p.seat] = p.score;
+    }
+    return scores;
   }
 
   protected onPlayerDisconnected(seat: number): void {
@@ -352,20 +374,23 @@ export class GameRoomDO extends BaseGameRoomDO<GameState, GameSettings, Env> {
     // there. So nextTurn for the primary broadcast is the seat right after the
     // placer (auto-passes will broadcast their own intermediate nextTurns).
     const placerNextSeat = (seat + 1) % this.gameState.players.length;
-    this.broadcast(JSON.stringify({
-      type: "move_made",
-      move: moveRecord,
-      scores: this.gameState.players.map((p) => p.score),
-      nextTurn: placerNextSeat,
-      bagCount: this.gameState.bag.length,
-    }));
+    try {
+      this.broadcast(JSON.stringify({
+        type: "move_made",
+        move: moveRecord,
+        scores: this.seatScores(),
+        nextTurn: placerNextSeat,
+        bagCount: this.gameState.bag.length,
+      }));
 
-    // Send the placing player their new rack privately
-    const newRack = this.gameState.players[seat]?.rack ?? [];
-    ws.send(JSON.stringify({ type: "tiles_drawn", tiles: newRack }));
+      // Send the placing player their new rack privately
+      const newRack = this.gameState.players[seat]?.rack ?? [];
+      ws.send(JSON.stringify({ type: "tiles_drawn", tiles: newRack }));
 
-    await this.broadcastAutoPasses(autoPasses);
-    await this.maybeBroadcastGameOver();
+      await this.broadcastAutoPasses(autoPasses);
+    } finally {
+      await this.maybeBroadcastGameOver();
+    }
   }
 
   private async handlePass(ws: WebSocket, seat: number) {
@@ -394,16 +419,19 @@ export class GameRoomDO extends BaseGameRoomDO<GameState, GameSettings, Env> {
     await this.persistMoveToDB(moveRecord);
 
     const passerNextSeat = (seat + 1) % this.gameState.players.length;
-    this.broadcast(JSON.stringify({
-      type: "move_made",
-      move: moveRecord,
-      scores: this.gameState.players.map((p) => p.score),
-      nextTurn: passerNextSeat,
-      bagCount: this.gameState.bag.length,
-    }));
+    try {
+      this.broadcast(JSON.stringify({
+        type: "move_made",
+        move: moveRecord,
+        scores: this.seatScores(),
+        nextTurn: passerNextSeat,
+        bagCount: this.gameState.bag.length,
+      }));
 
-    await this.broadcastAutoPasses(autoPasses);
-    await this.maybeBroadcastGameOver();
+      await this.broadcastAutoPasses(autoPasses);
+    } finally {
+      await this.maybeBroadcastGameOver();
+    }
   }
 
   private async handleExchange(ws: WebSocket, seat: number, tileIds: number[]) {
@@ -446,19 +474,22 @@ export class GameRoomDO extends BaseGameRoomDO<GameState, GameSettings, Env> {
     // and returns the same number of tiles), so auto-passes can't fire here. But
     // we still send the broadcast through the same path for consistency.
     const exchangerNextSeat = (seat + 1) % this.gameState.players.length;
-    this.broadcast(JSON.stringify({
-      type: "move_made",
-      move: moveRecord,
-      scores: this.gameState.players.map((p) => p.score),
-      nextTurn: exchangerNextSeat,
-      bagCount: this.gameState.bag.length,
-    }));
+    try {
+      this.broadcast(JSON.stringify({
+        type: "move_made",
+        move: moveRecord,
+        scores: this.seatScores(),
+        nextTurn: exchangerNextSeat,
+        bagCount: this.gameState.bag.length,
+      }));
 
-    const newRack = this.gameState.players[seat]?.rack ?? [];
-    ws.send(JSON.stringify({ type: "tiles_drawn", tiles: newRack }));
+      const newRack = this.gameState.players[seat]?.rack ?? [];
+      ws.send(JSON.stringify({ type: "tiles_drawn", tiles: newRack }));
 
-    await this.broadcastAutoPasses(autoPasses);
-    await this.maybeBroadcastGameOver();
+      await this.broadcastAutoPasses(autoPasses);
+    } finally {
+      await this.maybeBroadcastGameOver();
+    }
   }
 
   private async broadcastAutoPasses(autoPasses: MoveRecord[]) {
@@ -469,7 +500,7 @@ export class GameRoomDO extends BaseGameRoomDO<GameState, GameSettings, Env> {
       this.broadcast(JSON.stringify({
         type: "move_made",
         move: ap,
-        scores: this.gameState.players.map((p) => p.score),
+        scores: this.seatScores(),
         nextTurn: (ap.seat + 1) % playerCount,
         bagCount: this.gameState.bag.length,
       }));
@@ -481,7 +512,7 @@ export class GameRoomDO extends BaseGameRoomDO<GameState, GameSettings, Env> {
     await this.syncStatusToDB();
     this.broadcast(JSON.stringify({
       type: "game_over",
-      finalScores: this.gameState.players.map((p) => p.score),
+      finalScores: this.seatScores(),
       winner: this.gameState.winner,
     }));
   }
@@ -515,27 +546,67 @@ export class GameRoomDO extends BaseGameRoomDO<GameState, GameSettings, Env> {
 
   private async syncStatusToDB() {
     if (!this.gameId || !this.gameState) return;
+    const gameId = this.gameId;
+    const { status, players } = this.gameState;
+    if (status !== "active" && status !== "finished") return;
+
     try {
       const db = this.env.D1_DATABASE;
-      const { status, players } = this.gameState;
+      // Match the ISO-8601 text Prisma writes for createdAt so weekly stats
+      // can compare finishedAt with the same string format.
+      const now = new Date().toISOString().replace("Z", "+00:00");
 
       if (status === "active") {
-        await db
+        const result = await db
           .prepare(`UPDATE Game SET status = 'active' WHERE id = ? AND status = 'waiting'`)
-          .bind(this.gameId)
+          .bind(gameId)
           .run();
-      } else if (status === "finished") {
-        await db
-          .prepare(`UPDATE Game SET status = 'finished', finishedAt = datetime('now') WHERE id = ?`)
-          .bind(this.gameId)
-          .run();
-        for (const p of players) {
-          if (!p) continue;
+        if ((result.meta?.changes ?? 0) === 0) {
+          const row = await db
+            .prepare(`SELECT status FROM Game WHERE id = ?`)
+            .bind(gameId)
+            .first<{ status: string }>();
+          if (row && row.status === "waiting") {
+            console.error("[kings-cribbage] retrying active sync", gameId);
+            await db
+              .prepare(`UPDATE Game SET status = 'active' WHERE id = ? AND status = 'waiting'`)
+              .bind(gameId)
+              .run();
+          }
+        }
+        return;
+      }
+
+      const result = await db
+        .prepare(
+          `UPDATE Game
+           SET status = 'finished',
+               finishedAt = COALESCE(finishedAt, ?)
+           WHERE id = ?`,
+        )
+        .bind(now, gameId)
+        .run();
+
+      if ((result.meta?.changes ?? 0) === 0) {
+        const row = await db
+          .prepare(`SELECT status, finishedAt FROM Game WHERE id = ?`)
+          .bind(gameId)
+          .first<{ status: string; finishedAt: string | null }>();
+        if (!row || row.status !== "finished" || row.finishedAt == null) {
+          console.error("[kings-cribbage] finished sync did not stick", gameId, row);
           await db
-            .prepare(`UPDATE GamePlayer SET score = ? WHERE gameId = ? AND seat = ?`)
-            .bind(p.score, this.gameId, p.seat)
+            .prepare(`UPDATE Game SET status = 'finished', finishedAt = COALESCE(finishedAt, ?) WHERE id = ?`)
+            .bind(now, gameId)
             .run();
         }
+      }
+
+      for (const p of players) {
+        if (!p) continue;
+        await db
+          .prepare(`UPDATE GamePlayer SET score = ? WHERE gameId = ? AND seat = ?`)
+          .bind(p.score, gameId, p.seat)
+          .run();
       }
     } catch (err) {
       console.error("[kings-cribbage] D1 sync failed (syncStatusToDB):", err);

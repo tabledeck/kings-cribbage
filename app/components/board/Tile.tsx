@@ -48,6 +48,7 @@ export function TileDisplay({
   const suitSymbol = getSuitSymbol(suit);
 
   const stateClass = invalid ? "invalid" : staged ? "staged" : "";
+  const suitName = { heart: "hearts", diamond: "diamonds", spade: "spades", club: "clubs" }[suit];
 
   return (
     <motion.div
@@ -55,15 +56,29 @@ export function TileDisplay({
       initial={{ scale: 0.6, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       transition={{ type: "spring", stiffness: 400, damping: 25 }}
-      className={`${SIZE_CLASSES[size]} ${suit} ${stateClass} ${onFlip && canFlip ? "cursor-pointer" : ""}`}
+      className={`${SIZE_CLASSES[size]} ${suit} ${stateClass}`}
       style={size === "fill" ? { width: "100%", height: "100%" } : undefined}
-      onClick={canFlip ? onFlip : undefined}
-      title={canFlip ? "Click to flip 6/9" : undefined}
+      data-tile-id={tile.id}
+      data-rank={tile.rank}
+      data-color={tile.color}
+      data-flipped={tile.flipped ? "1" : "0"}
+      aria-label={`${label} of ${suitName}`}
     >
       <span className="n">{label}</span>
-      <span className="s">{suitSymbol}</span>
-      {canFlip && (
-        <FlipIcon className="flip-icon" />
+      <span className="s" aria-hidden="true">{suitSymbol}</span>
+      {canFlip && onFlip && (
+        <button
+          type="button"
+          className="flip-btn"
+          aria-label={tile.flipped ? "Play this 6 as a 6" : "Play this 6 as a 9"}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onFlip();
+          }}
+        >
+          <FlipIcon className="flip-icon" />
+        </button>
       )}
     </motion.div>
   );

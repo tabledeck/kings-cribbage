@@ -38,6 +38,11 @@ export const GuessNumberMsg = z.object({
   number: z.number().int().min(1).max(10),
 });
 
+export const RematchOfferMsg = z.object({
+  type: z.literal("rematch_offer"),
+  url: z.string().regex(/^\/game\/[A-Za-z0-9_-]{4,16}$/),
+});
+
 export const ClientMessage = z.discriminatedUnion("type", [
   PlaceTilesMsg,
   PassTurnMsg,
@@ -45,6 +50,7 @@ export const ClientMessage = z.discriminatedUnion("type", [
   ChatMsg,
   JoinGameMsg,
   GuessNumberMsg,
+  RematchOfferMsg,
   z.object({ type: z.literal("ping") }),
 ]);
 
@@ -97,6 +103,13 @@ export interface GameOverMsg {
   winner: number;
 }
 
+export interface RematchOfferBroadcastMsg {
+  type: "rematch_offer";
+  url: string;
+  fromSeat: number;
+  fromName: string;
+}
+
 export interface GuessRevealMsg {
   type: "guess_reveal";
   guesses: (number | null)[];
@@ -122,5 +135,6 @@ export type ServerMessage =
   | ChatBroadcastMsg
   | GuessRevealMsg
   | GameOverMsg
+  | RematchOfferBroadcastMsg
   | ErrorMsg
   | PongMsg;

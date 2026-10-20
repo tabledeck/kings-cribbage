@@ -41,6 +41,8 @@ export function TileRack({
               key={tile.id}
               onClick={() => isMyTurn && onSelectTile?.(tile.id)}
               className={isSelected ? "tile-selected-ring rounded" : "rounded"}
+              role={isMyTurn ? "button" : undefined}
+              aria-pressed={isSelected}
             >
               <DraggableTile
                 tile={tile}

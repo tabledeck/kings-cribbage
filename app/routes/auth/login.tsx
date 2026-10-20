@@ -38,49 +38,40 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center p-4">
-      <h1 className="text-3xl font-bold text-white mb-2">King's Cribbage</h1>
-      <p className="text-gray-400 mb-8">Sign in to track your game history</p>
-      <form
-        onSubmit={handleLogin}
-        className="flex flex-col gap-4 w-full max-w-sm"
-      >
+    <div className="td-surface auth-page">
+      <form onSubmit={handleLogin} className="td-lobby-card auth-card">
+        <h2>Sign in</h2>
+        <p className="font-sans text-sm mb-4" style={{ color: "var(--ink-soft)" }}>
+          Track your games on Tabledeck.
+        </p>
         <input
           type="email"
           placeholder="Email"
           required
+          autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="bg-gray-800 text-white rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500"
+          aria-label="Email"
         />
         <input
           type="password"
           placeholder="Password"
           required
+          autoComplete="current-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="bg-gray-800 text-white rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500"
+          aria-label="Password"
         />
-        {error && <p className="text-red-400 text-sm text-center">{error}</p>}
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold rounded-lg px-4 py-3 transition-colors"
-        >
+        {error && <p className="td-error mb-3">{error}</p>}
+        <button type="submit" disabled={loading} className="btn-primary">
           {loading ? "Signing in..." : "Sign In"}
         </button>
-        <p className="text-gray-400 text-sm text-center">
-          No account?{" "}
-          <a href="/signup" className="text-emerald-400 hover:underline">
-            Sign up
-          </a>
+        <p className="auth-switch">
+          No account? <a href="/signup">Sign up</a>
         </p>
-        <a
-          href="/"
-          className="text-gray-500 text-sm text-center hover:text-gray-300"
-        >
-          Play as guest instead
-        </a>
+        <p className="auth-switch">
+          <a href="/">Play as a guest</a>
+        </p>
       </form>
     </div>
   );
