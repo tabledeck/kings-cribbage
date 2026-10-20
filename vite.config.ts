@@ -27,7 +27,7 @@ export default defineConfig((config) => {
 
   return {
     build: {
-      outDir: "dist",
+      outDir: "build",
     },
     resolve: {
       alias:
